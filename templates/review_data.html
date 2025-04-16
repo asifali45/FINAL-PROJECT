@@ -35,7 +35,7 @@
                 
                 <form method="POST" action="{{ url_for('review_data') }}" class="{% if view_only %}no-spinner{% endif %}">
                     {% if not view_only %}
-                    {{ csrf_token() }}
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     {% endif %}
                     
                     {% for section, fields in extracted_data.items() %}
@@ -43,21 +43,41 @@
                         <h3 class="form-section-title">{{ section }}</h3>
                         
                         <div class="row">
-                            {% for field, value in fields.items() %}
-                            <div class="col-md-6 review-field">
-                                <label class="form-label review-field-label" for="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}">
-                                    {{ field }}
-                                </label>
-                                {% if view_only %}
-                                <input type="text" class="form-control" value="{{ value }}" readonly>
-                                {% else %}
-                                <input type="text" class="form-control field-highlight" 
-                                       name="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
-                                       id="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
-                                       value="{{ value }}">
-                                {% endif %}
-                            </div>
-                            {% endfor %}
+                            {% if fields is mapping %}
+                                {# New format from Gemini API (dictionary) #}
+                                {% for field, value in fields.items() %}
+                                <div class="col-md-6 review-field">
+                                    <label class="form-label review-field-label" for="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}">
+                                        {{ field }}
+                                    </label>
+                                    {% if view_only %}
+                                    <input type="text" class="form-control" value="{{ value }}" readonly>
+                                    {% else %}
+                                    <input type="text" class="form-control field-highlight" 
+                                           name="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
+                                           id="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
+                                           value="{{ value }}">
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                {# Old format (list) for backward compatibility #}
+                                {% for field in fields %}
+                                <div class="col-md-6 review-field">
+                                    <label class="form-label review-field-label" for="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}">
+                                        {{ field }}
+                                    </label>
+                                    {% if view_only %}
+                                    <input type="text" class="form-control" value="{{ value }}" readonly>
+                                    {% else %}
+                                    <input type="text" class="form-control field-highlight" 
+                                           name="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
+                                           id="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
+                                           value="{{ value }}">
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}

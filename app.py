@@ -36,6 +36,10 @@ app.config["GOOGLE_API_KEY"] = os.environ.get("GOOGLE_API_KEY", "")
 # Log Google API configuration for debugging
 logging.debug(f"Google API key length: {len(app.config['GOOGLE_API_KEY']) if app.config['GOOGLE_API_KEY'] else 0}")
 
+# Configure CSRF protection
+app.config['WTF_CSRF_ENABLED'] = True
+app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(24)
+
 # Initialize the extensions with the app
 db.init_app(app)
 login_manager.init_app(app)

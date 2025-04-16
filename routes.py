@@ -6,6 +6,7 @@ from datetime import datetime
 from flask import render_template, url_for, flash, redirect, request, jsonify, current_app, session
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.utils import secure_filename
+from flask_wtf.csrf import generate_csrf
 from app import app, db
 from models import User, ExtractedForm
 from forms import LoginForm, RegistrationForm, TemplateSelectionForm, FormUploadForm
@@ -14,6 +15,11 @@ import tempfile
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+# CSRF token context processor
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=generate_csrf())
 
 @app.route('/')
 @app.route('/index')
@@ -147,10 +153,18 @@ def review_data():
         
         for section, fields in session['extracted_data'].items():
             section_data = {}
-            for field in fields:
-                field_id = f"{section}_{field}".replace(" ", "_").replace("'", "")
-                field_value = request.form.get(field_id, "")
-                section_data[field] = field_value
+            # Check if fields is a dictionary (from Gemini API)
+            if isinstance(fields, dict):
+                for field, value in fields.items():
+                    field_id = f"{section}_{field}".replace(" ", "_").replace("'", "")
+                    field_value = request.form.get(field_id, "")
+                    section_data[field] = field_value
+            else:
+                # Backward compatibility with old format
+                for field in fields:
+                    field_id = f"{section}_{field}".replace(" ", "_").replace("'", "")
+                    field_value = request.form.get(field_id, "")
+                    section_data[field] = field_value
             
             updated_data[section] = section_data
         

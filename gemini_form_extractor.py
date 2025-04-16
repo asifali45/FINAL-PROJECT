@@ -29,8 +29,8 @@ class GeminiFormExtractor:
         try:
             # Configure the Gemini API
             genai.configure(api_key=api_key)
-            self.gemini_model = genai.GenerativeModel('gemini-pro-vision')
-            self.logger.info("Gemini API client initialized successfully")
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+            self.logger.info("Gemini API client initialized successfully with gemini-1.5-flash model")
         except Exception as e:
             self.logger.error(f"Failed to initialize Gemini API client: {str(e)}")
             raise

@@ -205,11 +205,24 @@ def view_form(form_id):
         flash('You do not have permission to view this form.', 'danger')
         return redirect(url_for('dashboard'))
     
+    # Get form data and ensure it's in the proper format for the template
+    form_data = extracted_form.get_data()
+    
+    # Log form data for debugging
+    logger.debug(f"Form data retrieved: {form_data}")
+    
+    # Ensure all sections are dictionaries for consistency
+    # (Convert any list-based field structures to dictionaries)
+    for section, fields in form_data.items():
+        if not isinstance(fields, dict):
+            # If we have a list of fields, convert to empty dictionary
+            form_data[section] = {field: "" for field in fields}
+    
     return render_template(
         'review_data.html', 
         title='View Form', 
         template_type=extracted_form.template_type,
-        extracted_data=extracted_form.get_data(),
+        extracted_data=form_data,
         view_only=True,
         form_id=form_id
     )
@@ -228,6 +241,13 @@ def export_form(form_id, format):
     # Get the form data
     form_data = extracted_form.get_data()
     template_type = extracted_form.template_type
+    
+    # Ensure all sections are dictionaries for consistency
+    # (Convert any list-based field structures to dictionaries)
+    for section, fields in form_data.items():
+        if not isinstance(fields, dict):
+            # If we have a list of fields, convert to empty dictionary
+            form_data[section] = {field: "" for field in fields}
     
     # Return the data to be handled by client-side export functions
     if format == 'json':

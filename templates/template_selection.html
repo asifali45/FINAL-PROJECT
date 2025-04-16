@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Select Template - Form Digitizer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="form-card">
+            <div class="form-card-header">
+                <h2><i class="fas fa-file-alt me-2"></i>Select Form Template</h2>
+            </div>
+            <div class="form-card-body">
+                <p class="lead mb-4">Choose the type of form you want to digitize:</p>
+                
+                <form method="POST" action="{{ url_for('template_selection') }}">
+                    {{ form.hidden_tag() }}
+                    {{ form.template(style="display: none;") }}
+                    
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <div class="card template-card" data-template="Biodata">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-user fa-4x text-primary mb-3"></i>
+                                    <h3>Biodata</h3>
+                                    <p>Personal information, contact details, family, education, and professional details</p>
+                                </div>
+                                <div class="card-footer">
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Personal Information</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Contact Details</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Family Information</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Educational Background</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Professional Details</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card template-card" data-template="Admission">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-university fa-4x text-info mb-3"></i>
+                                    <h3>Admission Form</h3>
+                                    <p>Personal details, educational qualifications, contact information, and course preferences</p>
+                                </div>
+                                <div class="card-footer">
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Personal Details</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Educational Details</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Contact Information</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Course Details</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card template-card" data-template="Bank Account">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-university fa-4x text-warning mb-3"></i>
+                                    <h3>Bank Account</h3>
+                                    <p>Bank details, personal information, and contact information for account opening</p>
+                                </div>
+                                <div class="card-footer">
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Bank Details</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Personal Details</li>
+                                        <li><i class="fas fa-check-circle text-success me-2"></i>Contact Information</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 col-md-6 mx-auto mt-4">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

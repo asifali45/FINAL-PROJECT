@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Form Digitizer{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="form-card">
+            <div class="form-card-header">
+                <h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
+            </div>
+            <div class="form-card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-file-alt fa-4x text-primary mb-3"></i>
+                                <h3>Digitize New Form</h3>
+                                <p class="text-muted">Upload and extract data from handwritten forms</p>
+                                <a href="{{ url_for('template_selection') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus-circle me-2"></i>New Form
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-save fa-4x text-info mb-3"></i>
+                                <h3>View Saved Forms</h3>
+                                <p class="text-muted">Access, edit or export your previously saved forms</p>
+                                <a href="{{ url_for('view_saved_forms') }}" class="btn btn-info">
+                                    <i class="fas fa-folder-open me-2"></i>Saved Forms
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if extracted_forms %}
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h3 class="mb-3"><i class="fas fa-history me-2"></i>Recent Forms</h3>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Form Type</th>
+                                        <th>File Name</th>
+                                        <th>Created On</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for form in extracted_forms[:5] %}
+                                    <tr>
+                                        <td>{{ form.template_type }}</td>
+                                        <td>{{ form.file_name }}</td>
+                                        <td>{{ form.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('view_form', form_id=form.id) }}" class="btn btn-sm btn-info" title="View Form">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('view_saved_forms') }}" class="btn btn-outline-primary">
+                                View All Saved Forms
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h3 class="mb-3"><i class="fas fa-info-circle me-2"></i>How It Works</h3>
+                        
+                        <div class="row g-4">
+                            <div class="col-md-3">
+                                <div class="card text-center h-100">
+                                    <div class="card-body">
+                                        <div class="bg-primary rounded-circle d-inline-flex justify-content-center align-items-center mb-3" style="width: 60px; height: 60px;">
+                                            <h2 class="m-0">1</h2>
+                                        </div>
+                                        <h5>Select Template</h5>
+                                        <p class="text-muted">Choose the appropriate form template type</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <div class="card text-center h-100">
+                                    <div class="card-body">
+                                        <div class="bg-primary rounded-circle d-inline-flex justify-content-center align-items-center mb-3" style="width: 60px; height: 60px;">
+                                            <h2 class="m-0">2</h2>
+                                        </div>
+                                        <h5>Upload Form</h5>
+                                        <p class="text-muted">Upload your handwritten form for extraction</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <div class="card text-center h-100">
+                                    <div class="card-body">
+                                        <div class="bg-primary rounded-circle d-inline-flex justify-content-center align-items-center mb-3" style="width: 60px; height: 60px;">
+                                            <h2 class="m-0">3</h2>
+                                        </div>
+                                        <h5>Review Data</h5>
+                                        <p class="text-muted">Verify and edit the extracted data</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3">
+                                <div class="card text-center h-100">
+                                    <div class="card-body">
+                                        <div class="bg-primary rounded-circle d-inline-flex justify-content-center align-items-center mb-3" style="width: 60px; height: 60px;">
+                                            <h2 class="m-0">4</h2>
+                                        </div>
+                                        <h5>Export Forms</h5>
+                                        <p class="text-muted">Export the digitized form data in Excel or PDF</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

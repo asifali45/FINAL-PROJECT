@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Review Data - Form Digitizer{% endblock %}
+
+{% block styles %}
+<!-- JSzip for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+<!-- SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- jsPDF for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="form-card">
+            <div class="form-card-header">
+                <h2>
+                    {% if view_only %}
+                    <i class="fas fa-eye me-2"></i>View Form
+                    {% else %}
+                    <i class="fas fa-edit me-2"></i>Review Extracted Data
+                    {% endif %}
+                </h2>
+                <div class="badge bg-primary">{{ template_type }}</div>
+            </div>
+            <div class="form-card-body">
+                {% if not view_only %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Please review the extracted data below. You can edit any field if needed.
+                </div>
+                {% endif %}
+                
+                <form method="POST" action="{{ url_for('review_data') }}" class="{% if view_only %}no-spinner{% endif %}">
+                    {% if not view_only %}
+                    {{ csrf_token() }}
+                    {% endif %}
+                    
+                    {% for section, fields in extracted_data.items() %}
+                    <div class="form-section mb-4">
+                        <h3 class="form-section-title">{{ section }}</h3>
+                        
+                        <div class="row">
+                            {% for field, value in fields.items() %}
+                            <div class="col-md-6 review-field">
+                                <label class="form-label review-field-label" for="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}">
+                                    {{ field }}
+                                </label>
+                                {% if view_only %}
+                                <input type="text" class="form-control" value="{{ value }}" readonly>
+                                {% else %}
+                                <input type="text" class="form-control field-highlight" 
+                                       name="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
+                                       id="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
+                                       value="{{ value }}">
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <div class="row mt-4">
+                        {% if view_only %}
+                        <div class="col-md-4">
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-success w-100" onclick="exportToExcel({{ form_id }})">
+                                <i class="fas fa-file-excel me-2"></i>Export to Excel
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-danger w-100" onclick="exportToPDF({{ form_id }})">
+                                <i class="fas fa-file-pdf me-2"></i>Export to PDF
+                            </button>
+                        </div>
+                        {% else %}
+                        <div class="col-md-6">
+                            <a href="{{ url_for('form_upload') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Upload
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-save me-2"></i>Save Data
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Export functionality -->
+<script src="{{ url_for('static', filename='js/export.js') }}"></script>
+{% endblock %}

@@ -44,7 +44,6 @@
                         
                         <div class="row">
                             {% if fields is mapping %}
-                                {# New format from Gemini API (dictionary) #}
                                 {% for field, value in fields.items() %}
                                 <div class="col-md-6 review-field">
                                     <label class="form-label review-field-label" for="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}">
@@ -61,19 +60,18 @@
                                 </div>
                                 {% endfor %}
                             {% else %}
-                                {# Old format (list) for backward compatibility #}
                                 {% for field in fields %}
                                 <div class="col-md-6 review-field">
                                     <label class="form-label review-field-label" for="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}">
                                         {{ field }}
                                     </label>
                                     {% if view_only %}
-                                    <input type="text" class="form-control" value="{{ value }}" readonly>
+                                    <input type="text" class="form-control" value="" readonly>
                                     {% else %}
                                     <input type="text" class="form-control field-highlight" 
                                            name="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
                                            id="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
-                                           value="{{ value }}">
+                                           value="">
                                     {% endif %}
                                 </div>
                                 {% endfor %}

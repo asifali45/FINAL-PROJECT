@@ -105,20 +105,12 @@ def form_upload():
         uploaded_file.save(temp_path)
         
         try:
-            # Log Azure credentials for debugging
-            logger.debug(f"Using Azure endpoint: {app.config['AZURE_ENDPOINT']}")
-            
             # Extract data using Azure Form Recognizer
             endpoint = app.config['AZURE_ENDPOINT']
             api_key = app.config['AZURE_KEY']
             
-            # Ensure the endpoint has a valid URL format
-            if not endpoint.startswith('https://'):
-                logger.warning(f"Azure endpoint doesn't start with https://: {endpoint}")
-                # Add the https:// prefix if needed
-                endpoint = f"https://{endpoint}"
-            
-            logger.debug(f"Using formatted endpoint: {endpoint}")
+            logger.debug(f"Using Azure endpoint: {endpoint}")
+            logger.debug(f"API key length: {len(api_key) if api_key else 0}")
             
             extractor = FormExtractor(
                 endpoint=endpoint,

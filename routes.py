@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from app import app, db
 from models import User, ExtractedForm
 from forms import LoginForm, RegistrationForm, TemplateSelectionForm, FormUploadForm
-from form_extractor import FormExtractor
+from gemini_form_extractor import GeminiFormExtractor
 import tempfile
 
 # Set up logging
@@ -105,17 +105,13 @@ def form_upload():
         uploaded_file.save(temp_path)
         
         try:
-            # Extract data using Azure Form Recognizer
-            endpoint = app.config['AZURE_ENDPOINT']
-            api_key = app.config['AZURE_KEY']
+            # Extract data using Google Gemini API
+            api_key = app.config['GOOGLE_API_KEY']
             
-            logger.debug(f"Using Azure endpoint: {endpoint}")
+            logger.debug(f"Using Google Gemini API for extraction")
             logger.debug(f"API key length: {len(api_key) if api_key else 0}")
             
-            extractor = FormExtractor(
-                endpoint=endpoint,
-                api_key=api_key
-            )
+            extractor = GeminiFormExtractor(api_key=api_key)
             
             extracted_data = extractor.extract_form_data(temp_path, selected_template)
             

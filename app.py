@@ -30,13 +30,11 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 }
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Azure Form Recognizer configuration
-app.config["AZURE_ENDPOINT"] = "https://asifali.cognitiveservices.azure.com/"
-app.config["AZURE_KEY"] = "EOE9RXRJ4kGTaKDMpkijz3eru1bSarEcRShgxcYEbl9qmpzekr7FJQQJ99BCACGhslBXJ3w3AAAFACOG9wU8"
+# Google Gemini API configuration
+app.config["GOOGLE_API_KEY"] = os.environ.get("GOOGLE_API_KEY", "")
 
-# Log Azure configuration for debugging
-logging.debug(f"Azure endpoint: {app.config['AZURE_ENDPOINT']}")
-logging.debug(f"Azure key length: {len(app.config['AZURE_KEY']) if app.config['AZURE_KEY'] else 0}")
+# Log Google API configuration for debugging
+logging.debug(f"Google API key length: {len(app.config['GOOGLE_API_KEY']) if app.config['GOOGLE_API_KEY'] else 0}")
 
 # Initialize the extensions with the app
 db.init_app(app)

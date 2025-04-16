@@ -31,8 +31,8 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Azure Form Recognizer configuration
-app.config["AZURE_ENDPOINT"] = "https://asifali.cognitiveservices.azure.com/"
-app.config["AZURE_KEY"] = "EOE9RXRJ4kGTaKDMpkijz3eru1bSarEcRShgxcYEbl9qmpzekr7FJQQJ99BCACGhslBXJ3w3AAAFACOG9wU8"
+app.config["AZURE_ENDPOINT"] = os.environ.get("AZURE_ENDPOINT", "https://asifali.cognitiveservices.azure.com/")
+app.config["AZURE_KEY"] = os.environ.get("AZURE_KEY", "EOE9RXRJ4kGTaKDMpkijz3eru1bSarEcRShgxcYEbl9qmpzekr7FJQQJ99BCACGhslBXJ3w3AAAFACOG9wU8")
 
 # Initialize the extensions with the app
 db.init_app(app)

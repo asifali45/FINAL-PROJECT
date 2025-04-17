@@ -178,28 +178,29 @@ def review_data():
         flash('No extracted data to review. Please upload a form first.', 'warning')
         return redirect(url_for('template_selection'))
     
+    # Get the template structure for the selected template
+    template_type = session['selected_template']
+    template = FORM_TEMPLATES.get(template_type, {})
+    
     if request.method == 'POST':
         # Get the updated form data from the submitted form
         updated_data = {}
         
-        for section, fields in session['extracted_data'].items():
+        # Process form data based on the template structure
+        for section_name, fields_info in template.items():
             section_data = {}
-            # Check if fields is a dictionary (from Gemini API)
-            if isinstance(fields, dict):
-                for field, value in fields.items():
-                    field_id = f"{section}_{field}".replace(" ", "_").replace("'", "")
-                    field_value = request.form.get(field_id, "")
-                    # Only add non-empty values to updated_data
-                    section_data[field] = field_value
-            else:
-                # Backward compatibility with old format
-                for field in fields:
-                    field_id = f"{section}_{field}".replace(" ", "_").replace("'", "")
-                    field_value = request.form.get(field_id, "")
-                    section_data[field] = field_value
             
-            updated_data[section] = section_data
-
+            # Go through each field in this section template
+            for field_info in fields_info:
+                field_name = field_info["field"]
+                field_id = f"{section_name}_{field_name}".replace(" ", "_").replace("'", "")
+                field_value = request.form.get(field_id, "")
+                
+                # Store the form value 
+                section_data[field_name] = field_value
+                
+            updated_data[section_name] = section_data
+            
         # Log data before saving
         logger.debug(f"Saving updated form data: {updated_data}")
         

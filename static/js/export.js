@@ -199,18 +199,43 @@ function exportToExcel(formId) {
             const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
             XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
             
-            // Create section-specific worksheets - one per section
+            // Create a detailed data worksheet for each section
             Object.entries(extractedData).forEach(([section, fields]) => {
-                // Create section data with proper column headers
+                // Create data for section
+                const sectionData = [];
+                
+                // Add section header
+                sectionData.push([`${section}`]);
+                sectionData.push([]); // Empty row
+                
+                // Add field-value pairs
+                Object.entries(fields).forEach(([field, value]) => {
+                    sectionData.push([field, value || '']);
+                });
+                
+                // Create and add section worksheet
+                const sectionWs = XLSX.utils.aoa_to_sheet(sectionData);
+                
+                // Create a safe sheet name
+                const safeSheetName = section.replace(/[\\/*[\]?]/g, '').substring(0, 31);
+                XLSX.utils.book_append_sheet(wb, sectionWs, safeSheetName);
+            });
+            
+            // Creating a data table for each section with field names in first row and values in second row
+            Object.entries(extractedData).forEach(([section, fields]) => {
+                // Create data table for section
+                const tableData = [];
+                
+                // Get all field names as headers
                 const headers = Object.keys(fields);
+                tableData.push(headers);
                 
-                // Create the data rows for this section
-                const rows = [];
-                rows.push(headers); // First row is field names
-                rows.push(Object.values(fields).map(val => val || '')); // Second row is values
+                // Add values as a row
+                const values = Object.values(fields).map(v => v || '');
+                tableData.push(values);
                 
-                // Create and add worksheet
-                const sectionWs = XLSX.utils.aoa_to_sheet(rows);
+                // Create and add table worksheet
+                const tableWs = XLSX.utils.aoa_to_sheet(tableData);
                 
                 // Format the worksheet - adjust column widths
                 const columnWidths = [];
@@ -218,43 +243,36 @@ function exportToExcel(formId) {
                     // Default width is max of 15 characters or header length
                     columnWidths[i] = { wch: Math.max(15, headers[i].length * 1.2) };
                 }
-                sectionWs['!cols'] = columnWidths;
+                tableWs['!cols'] = columnWidths;
                 
                 // Create a safe sheet name
-                const safeSheetName = section.replace(/[\\/*[\]?]/g, '').substring(0, 31);
-                XLSX.utils.book_append_sheet(wb, sectionWs, safeSheetName);
+                const safeSheetName = `${section}_Table`.replace(/[\\/*[\]?]/g, '').substring(0, 31);
+                XLSX.utils.book_append_sheet(wb, tableWs, safeSheetName);
             });
             
-            // Create consolidated data worksheet in the format requested
-            // This will have field names as columns
-            const allHeaders = [];
-            const allValues = [];
+            // Create consolidated data worksheet for all sections combined
+            const detailedData = [];
+            detailedData.push(['Section', 'Field', 'Value']);
             
-            // Extract all field names by section
+            // Add all sections and fields
             Object.entries(extractedData).forEach(([section, fields]) => {
                 Object.entries(fields).forEach(([field, value]) => {
-                    allHeaders.push(`${section} - ${field}`);
-                    allValues.push(value || '');
+                    detailedData.push([section, field, value || '']);
                 });
             });
             
-            // Create the consolidated data
-            const allData = [
-                allHeaders, // Field names as columns
-                allValues   // Values as a row
+            // Create and add all data worksheet
+            const allDataWs = XLSX.utils.aoa_to_sheet(detailedData);
+            
+            // Format the worksheet - adjust column widths
+            const allDataWidths = [
+                { wch: 20 }, // Section column
+                { wch: 25 }, // Field column
+                { wch: 30 }  // Value column
             ];
+            allDataWs['!cols'] = allDataWidths;
             
-            // Add consolidated worksheet
-            const allDataWs = XLSX.utils.aoa_to_sheet(allData);
-            
-            // Format the consolidated worksheet
-            const allColumnWidths = [];
-            for (let i = 0; i < allHeaders.length; i++) {
-                allColumnWidths[i] = { wch: Math.max(15, allHeaders[i].length * 1.2) };
-            }
-            allDataWs['!cols'] = allColumnWidths;
-            
-            XLSX.utils.book_append_sheet(wb, allDataWs, 'All Fields');
+            XLSX.utils.book_append_sheet(wb, allDataWs, 'All Data');
             
             // Save workbook
             XLSX.writeFile(wb, `${templateType.replace(/\s+/g, '_')}_Form_${formId}.xlsx`);
@@ -285,7 +303,7 @@ function exportAllFormsToExcel() {
             
             // Create a summary worksheet
             const summaryData = [
-                ['Form Digitizer - All Forms Export'],
+                ['FormOCR - All Forms Export'],
                 ['User:', username],
                 ['Export Date:', exportDate],
                 [],
@@ -310,6 +328,54 @@ function exportAllFormsToExcel() {
                 // Get a sample form to determine structure
                 const sampleForm = forms[0];
                 const templateStructure = sampleForm.extractedData;
+                
+                // Create a summary worksheet for this template type with form details
+                const templateSummaryData = [
+                    [`${templateType} Forms Summary`],
+                    [],
+                    ['Form ID', 'File Name', 'Created Date']
+                ];
+                
+                // Add each form to the summary
+                forms.forEach(form => {
+                    templateSummaryData.push([form.formId, form.fileName, form.createdAt]);
+                });
+                
+                // Add template summary worksheet
+                const templateSummaryWs = XLSX.utils.aoa_to_sheet(templateSummaryData);
+                XLSX.utils.book_append_sheet(wb, templateSummaryWs, `${templateType} Summary`);
+                
+                // Create a detailed worksheet with all forms data in vertical format
+                const detailedData = [
+                    [`${templateType} - All Forms Data`],
+                    []
+                ];
+                
+                // Add each form with its data in a section-by-section format
+                forms.forEach(form => {
+                    // Add form header
+                    detailedData.push([`Form ID: ${form.formId}`, `File: ${form.fileName}`, `Date: ${form.createdAt}`]);
+                    detailedData.push([]);
+                    
+                    // Add all sections and their data
+                    Object.entries(form.extractedData).forEach(([section, fields]) => {
+                        detailedData.push([section]);
+                        detailedData.push(['Field', 'Value']);
+                        
+                        Object.entries(fields).forEach(([field, value]) => {
+                            detailedData.push([field, value || '']);
+                        });
+                        
+                        detailedData.push([]); // Empty row after section
+                    });
+                    
+                    detailedData.push([]); // Extra empty row between forms
+                    detailedData.push([]); // Extra empty row between forms
+                });
+                
+                // Add detailed data worksheet
+                const detailedWs = XLSX.utils.aoa_to_sheet(detailedData);
+                XLSX.utils.book_append_sheet(wb, detailedWs, `${templateType} Details`);
                 
                 // Process each section separately to get all fields
                 Object.entries(templateStructure).forEach(([sectionName, fields]) => {

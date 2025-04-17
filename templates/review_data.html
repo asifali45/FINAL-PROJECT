@@ -53,8 +53,8 @@
                                 <input type="text" class="form-control" value="{{ value }}" readonly>
                                 {% else %}
                                 <input type="text" class="form-control field-highlight" 
-                                       name="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
-                                       id="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
+                                       name="{{ section|replace(' ', '_') }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
+                                       id="{{ section|replace(' ', '_') }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
                                        value="{{ value }}">
                                 {% endif %}
                             </div>

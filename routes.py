@@ -198,8 +198,20 @@ def review_data():
             # Go through each field in this section template
             for field_info in fields_info:
                 field_name = field_info["field"]
+                
+                # Match the field ID format used in the template
+                # In the template: {{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}
                 field_id = f"{section_name}_{field_name}".replace(" ", "_").replace("'", "")
+                
+                # Try both formats - with and without space replacement
                 field_value = request.form.get(field_id, "")
+                
+                # If empty, try with spaces (as seen in the form submission)
+                if not field_value:
+                    alternate_field_id = f"{section_name} {field_name}"
+                    field_value = request.form.get(alternate_field_id, "")
+                    if field_value:
+                        logger.debug(f"Found value using alternate ID: {alternate_field_id}")
                 
                 # Debug this specific field
                 logger.debug(f"Field: {field_id}, Value from form: '{field_value}'")

@@ -19,7 +19,7 @@ login_manager = LoginManager()
 
 # Create the app
 app = Flask(__name__)
-# Set a fixed secret key for development - in production, use environment variable
+# Set secret key - using a fixed key for now since SESSION_SECRET isn't available
 app.secret_key = "dev_secure_secret_key_for_form_digitizer_application"
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # needed for url_for to generate with https
 

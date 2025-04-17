@@ -43,39 +43,22 @@
                         <h3 class="form-section-title">{{ section }}</h3>
                         
                         <div class="row">
-                            {% if fields is mapping %}
-                                {% for field, value in fields.items() %}
-                                <div class="col-md-6 review-field">
-                                    <label class="form-label review-field-label" for="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}">
-                                        {{ field }}
-                                    </label>
-                                    {% if view_only %}
-                                    <input type="text" class="form-control" value="{{ value }}" readonly>
-                                    {% else %}
-                                    <input type="text" class="form-control field-highlight" 
-                                           name="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
-                                           id="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
-                                           value="{{ value }}">
-                                    {% endif %}
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                {% for field in fields %}
-                                <div class="col-md-6 review-field">
-                                    <label class="form-label review-field-label" for="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}">
-                                        {{ field }}
-                                    </label>
-                                    {% if view_only %}
-                                    <input type="text" class="form-control" value="" readonly>
-                                    {% else %}
-                                    <input type="text" class="form-control field-highlight" 
-                                           name="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
-                                           id="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
-                                           value="">
-                                    {% endif %}
-                                </div>
-                                {% endfor %}
-                            {% endif %}
+                            {# Fields should always be a dictionary by the time it reaches the template #}
+                            {% for field, value in fields.items() %}
+                            <div class="col-md-6 review-field">
+                                <label class="form-label review-field-label" for="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}">
+                                    {{ field }}
+                                </label>
+                                {% if view_only %}
+                                <input type="text" class="form-control" value="{{ value }}" readonly>
+                                {% else %}
+                                <input type="text" class="form-control field-highlight" 
+                                       name="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
+                                       id="{{ section }}_{{ field|replace(' ', '_')|replace("'", "") }}" 
+                                       value="{{ value }}">
+                                {% endif %}
+                            </div>
+                            {% endfor %}
                         </div>
                     </div>
                     {% endfor %}

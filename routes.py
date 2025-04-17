@@ -209,14 +209,24 @@ def view_form(form_id):
     form_data = extracted_form.get_data()
     
     # Log form data for debugging
-    logger.debug(f"Form data retrieved: {form_data}")
+    logger.debug(f"Original form data retrieved: {form_data}")
     
     # Ensure all sections are dictionaries for consistency
-    # (Convert any list-based field structures to dictionaries)
-    for section, fields in form_data.items():
-        if not isinstance(fields, dict):
-            # If we have a list of fields, convert to empty dictionary
+    # Sometimes data might not be properly saved or might be in an older format
+    for section, fields in list(form_data.items()):
+        if isinstance(fields, dict):
+            # Data is already in the correct format
+            continue
+        elif isinstance(fields, list):
+            # Convert list to empty dictionary
             form_data[section] = {field: "" for field in fields}
+            logger.warning(f"Had to convert section {section} from list to dict format")
+        else:
+            # Invalid format, create an empty dictionary
+            logger.error(f"Invalid data format for section {section}: {type(fields)}")
+            form_data[section] = {}
+    
+    logger.debug(f"Processed form data: {form_data}")
     
     return render_template(
         'review_data.html', 
@@ -243,11 +253,19 @@ def export_form(form_id, format):
     template_type = extracted_form.template_type
     
     # Ensure all sections are dictionaries for consistency
-    # (Convert any list-based field structures to dictionaries)
-    for section, fields in form_data.items():
-        if not isinstance(fields, dict):
-            # If we have a list of fields, convert to empty dictionary
+    # Sometimes data might not be properly saved or might be in an older format
+    for section, fields in list(form_data.items()):
+        if isinstance(fields, dict):
+            # Data is already in the correct format
+            continue
+        elif isinstance(fields, list):
+            # Convert list to empty dictionary
             form_data[section] = {field: "" for field in fields}
+            logger.warning(f"Had to convert section {section} from list to dict format")
+        else:
+            # Invalid format, create an empty dictionary
+            logger.error(f"Invalid data format for section {section}: {type(fields)}")
+            form_data[section] = {}
     
     # Return the data to be handled by client-side export functions
     if format == 'json':

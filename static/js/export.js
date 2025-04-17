@@ -181,85 +181,63 @@ function exportToExcel(formId) {
             // Create a new workbook
             const wb = XLSX.utils.book_new();
             
-            // Create a summary worksheet first
-            const summaryData = [];
+            // Create a summary worksheet
+            const summaryData = [
+                [`${templateType} Form`],
+                ['Original File:', fileName],
+                ['Export Date:', new Date().toLocaleString()],
+                [],
+                ['Form Sections:']
+            ];
             
-            // Add title and metadata
-            summaryData.push([`${templateType} Form`]);
-            summaryData.push(['Original File:', fileName]);
-            summaryData.push(['Export Date:', new Date().toLocaleString()]);
-            summaryData.push([]);  // Empty row
-            summaryData.push(['Form Sections:']);
-            
-            // List all sections
+            // Add sections to summary
             Object.keys(extractedData).forEach((section, index) => {
                 summaryData.push([`${index + 1}. ${section}`]);
             });
             
-            // Create and add the summary worksheet
+            // Add summary worksheet
             const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
             XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
             
-            // Create a nicely formatted main worksheet with all data
-            const mainData = [];
+            // Create consolidated data worksheet
+            const allData = [
+                [`${templateType} Form - Complete Data`],
+                [],
+                ['Section', 'Field', 'Value']
+            ];
             
-            // Add title row
-            mainData.push([`${templateType} Form Data`]);
-            mainData.push([]); // Empty row
+            // Add all fields with their sections
+            Object.entries(extractedData).forEach(([section, fields]) => {
+                Object.entries(fields).forEach(([field, value]) => {
+                    allData.push([section, field, value || '']);
+                });
+            });
             
-            // Process each section
-            for (const [section, fields] of Object.entries(extractedData)) {
-                // Add section header
-                mainData.push([section]);
-                
-                // Add column headers
-                const headers = ['Field', 'Value'];
-                mainData.push(headers);
-                
-                // Add field data
-                for (const [field, value] of Object.entries(fields)) {
-                    mainData.push([field, value]);
-                }
-                
-                // Add empty row between sections
-                mainData.push([]);
-            }
+            // Add consolidated worksheet
+            const allDataWs = XLSX.utils.aoa_to_sheet(allData);
+            XLSX.utils.book_append_sheet(wb, allDataWs, 'All Data');
             
-            // Create and add main worksheet
-            const mainWs = XLSX.utils.aoa_to_sheet(mainData);
-            XLSX.utils.book_append_sheet(wb, mainWs, 'All Data');
-            
-            // Create individual worksheets for each section
-            for (const [section, fields] of Object.entries(extractedData)) {
-                // Prepare data for this section's worksheet
-                const sectionData = [];
+            // Create section-specific worksheets
+            Object.entries(extractedData).forEach(([section, fields]) => {
+                const sectionData = [
+                    [section],
+                    [],
+                    ['Field', 'Value']
+                ];
                 
-                // Add section title
-                sectionData.push([section]);
-                sectionData.push([]); // Empty row
+                // Add all fields for this section
+                Object.entries(fields).forEach(([field, value]) => {
+                    sectionData.push([field, value || '']);
+                });
                 
-                // Get all field names for this section
-                const fieldNames = Object.keys(fields);
-                
-                // Add header row
-                sectionData.push(fieldNames);
-                
-                // Add data row
-                const values = fieldNames.map(field => fields[field]);
-                sectionData.push(values);
-                
-                // Create worksheet
+                // Create and add section worksheet
                 const sectionWs = XLSX.utils.aoa_to_sheet(sectionData);
-                
-                // Sanitize section name for sheet name (max 31 chars, no special chars)
-                const sheetName = section.replace(/[\\/*[\]?]/g, '').substring(0, 31);
-                
-                // Add worksheet to workbook
-                XLSX.utils.book_append_sheet(wb, sectionWs, sheetName);
-            }
+                const safeSheetName = section.replace(/[\\/*[\]?]/g, '').substring(0, 31);
+                XLSX.utils.book_append_sheet(wb, sectionWs, safeSheetName);
+            });
             
-            // Save the Excel file
-            XLSX.writeFile(wb, `${templateType.replace(' ', '_')}_Form_${formId}.xlsx`);
+            // Save workbook
+            XLSX.writeFile(wb, `${templateType.replace(/\s+/g, '_')}_Form_${formId}.xlsx`);
             
             // Hide loading spinner
             hideSpinner();

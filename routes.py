@@ -354,6 +354,75 @@ def export_form(form_id, format):
         flash('Invalid export format.', 'danger')
         return redirect(url_for('view_form', form_id=form_id))
 
+@app.route('/export-all-forms/<format>')
+@login_required
+def export_all_forms(format):
+    """
+    Export all forms for the current user, organized by template type
+    """
+    # Get all the user's extracted forms
+    extracted_forms = ExtractedForm.query.filter_by(user_id=current_user.id).order_by(ExtractedForm.created_at.desc()).all()
+    
+    if not extracted_forms:
+        flash('No forms to export.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    # Group forms by template type
+    forms_by_template = {}
+    
+    for form in extracted_forms:
+        template_type = form.template_type
+        
+        # Initialize entry for this template type if it doesn't exist
+        if template_type not in forms_by_template:
+            forms_by_template[template_type] = []
+            
+        # Get form data
+        form_data = form.get_data()
+        
+        # Ensure form data follows the template structure
+        template = FORM_TEMPLATES.get(template_type, {})
+        complete_form_data = {}
+        
+        for section_name, fields_info in template.items():
+            section_data = {}
+            # Initialize with empty data for all fields from template
+            for field_info in fields_info:
+                field_name = field_info["field"]
+                section_data[field_name] = ""
+                
+            # If section exists in saved data, use those values
+            if section_name in form_data and isinstance(form_data[section_name], dict):
+                for field_name, value in form_data[section_name].items():
+                    section_data[field_name] = value
+                    
+            complete_form_data[section_name] = section_data
+            
+        # Add form metadata
+        form_info = {
+            'formId': form.id,
+            'fileName': form.file_name,
+            'createdAt': form.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'extractedData': complete_form_data
+        }
+        
+        # Add to the template group
+        forms_by_template[template_type].append(form_info)
+    
+    # Return the data to be handled by client-side export functions
+    if format == 'json':
+        # For Excel export, we'll use json as an intermediate
+        data = {
+            'userId': current_user.id,
+            'username': current_user.username,
+            'exportDate': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'formsByTemplate': forms_by_template
+        }
+        return jsonify(data)
+    else:
+        flash('Invalid export format.', 'danger')
+        return redirect(url_for('dashboard'))
+
 @app.route('/view-saved-forms')
 @login_required
 def view_saved_forms():

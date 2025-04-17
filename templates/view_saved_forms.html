@@ -6,8 +6,13 @@
 <div class="row">
     <div class="col-12">
         <div class="form-card">
-            <div class="form-card-header">
+            <div class="form-card-header d-flex justify-content-between align-items-center">
                 <h2><i class="fas fa-save me-2"></i>Saved Forms</h2>
+                {% if extracted_forms %}
+                <button type="button" class="btn btn-success" onclick="exportAllFormsToExcel()" title="Export All Forms to Excel">
+                    <i class="fas fa-file-excel me-2"></i>Export All Forms
+                </button>
+                {% endif %}
             </div>
             <div class="form-card-body">
                 {% if extracted_forms %}

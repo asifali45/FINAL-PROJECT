@@ -248,3 +248,173 @@ function exportToExcel(formId) {
             hideSpinner();
         });
 }
+
+// Function to export all user forms to a structured Excel workbook
+function exportAllFormsToExcel() {
+    // Show loading spinner
+    showSpinner();
+    
+    // Fetch all forms data
+    fetch('/export-all-forms/json')
+        .then(response => response.json())
+        .then(data => {
+            const { username, exportDate, formsByTemplate } = data;
+            
+            // Create a new workbook
+            const wb = XLSX.utils.book_new();
+            
+            // Create a summary worksheet
+            const summaryData = [
+                ['Form Digitizer - All Forms Export'],
+                ['User:', username],
+                ['Export Date:', exportDate],
+                [],
+                ['Templates Included:']
+            ];
+            
+            // Add template types to summary
+            Object.keys(formsByTemplate).forEach((template, index) => {
+                const formCount = formsByTemplate[template].length;
+                summaryData.push([`${index + 1}. ${template} (${formCount} forms)`]);
+            });
+            
+            // Add summary worksheet
+            const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+            XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+            
+            // Process each template type
+            Object.entries(formsByTemplate).forEach(([templateType, forms]) => {
+                // Skip if no forms for this template
+                if (forms.length === 0) return;
+                
+                // Get a sample form to determine structure
+                const sampleForm = forms[0];
+                const templateStructure = sampleForm.extractedData;
+                
+                // Create a worksheet for this template type - flatten the form structure
+                // First, we'll identify all unique fields across all sections
+                const allFields = {};
+                const allSections = new Set();
+                
+                // Determine all possible fields and sections
+                Object.entries(templateStructure).forEach(([section, fields]) => {
+                    allSections.add(section);
+                    Object.keys(fields).forEach(field => {
+                        const fieldKey = `${section} - ${field}`;
+                        allFields[fieldKey] = { section, field };
+                    });
+                });
+                
+                // Create headers for the flattened table
+                const headers = ['Form ID', 'File Name', 'Created At'];
+                const fieldKeys = Object.keys(allFields);
+                headers.push(...fieldKeys);
+                
+                // Create worksheet rows
+                const rows = [];
+                rows.push(headers);
+                
+                // Add data for each form
+                forms.forEach(form => {
+                    const row = [
+                        form.formId,
+                        form.fileName,
+                        form.createdAt
+                    ];
+                    
+                    // Add values for each field
+                    fieldKeys.forEach(fieldKey => {
+                        const { section, field } = allFields[fieldKey];
+                        let value = '';
+                        
+                        if (form.extractedData[section] && 
+                            field in form.extractedData[section]) {
+                            value = form.extractedData[section][field] || '';
+                        }
+                        
+                        row.push(value);
+                    });
+                    
+                    rows.push(row);
+                });
+                
+                // Create and add template worksheet
+                const templateWs = XLSX.utils.aoa_to_sheet(rows);
+                
+                // Format the worksheet - adjust column widths
+                const columnWidths = [];
+                for (let i = 0; i < headers.length; i++) {
+                    // Default width is max of 15 characters or header length
+                    columnWidths[i] = { wch: Math.max(15, headers[i].length * 1.2) };
+                }
+                templateWs['!cols'] = columnWidths;
+                
+                // Create a safe sheet name
+                const safeTemplateName = templateType.replace(/[\\/*[\]?]/g, '').substring(0, 28);
+                XLSX.utils.book_append_sheet(wb, templateWs, safeTemplateName);
+                
+                // Create section-specific worksheets for this template
+                allSections.forEach(section => {
+                    // Get all fields for this section
+                    const sectionFields = Object.values(allFields)
+                        .filter(f => f.section === section)
+                        .map(f => f.field);
+                    
+                    // Create headers for the section table
+                    const sectionHeaders = ['Form ID', 'File Name', 'Created At', ...sectionFields];
+                    
+                    // Create worksheet rows
+                    const sectionRows = [];
+                    sectionRows.push(sectionHeaders);
+                    
+                    // Add data for each form
+                    forms.forEach(form => {
+                        const row = [
+                            form.formId,
+                            form.fileName,
+                            form.createdAt
+                        ];
+                        
+                        // Add values for each field in this section
+                        sectionFields.forEach(field => {
+                            let value = '';
+                            
+                            if (form.extractedData[section] && 
+                                field in form.extractedData[section]) {
+                                value = form.extractedData[section][field] || '';
+                            }
+                            
+                            row.push(value);
+                        });
+                        
+                        sectionRows.push(row);
+                    });
+                    
+                    // Create and add section worksheet
+                    const sectionWs = XLSX.utils.aoa_to_sheet(sectionRows);
+                    
+                    // Format the worksheet - adjust column widths
+                    const sectionColumnWidths = [];
+                    for (let i = 0; i < sectionHeaders.length; i++) {
+                        sectionColumnWidths[i] = { wch: Math.max(15, sectionHeaders[i].length * 1.2) };
+                    }
+                    sectionWs['!cols'] = sectionColumnWidths;
+                    
+                    // Create a safe sheet name
+                    const safeSectionName = `${safeTemplateName}-${section}`.replace(/[\\/*[\]?]/g, '').substring(0, 31);
+                    XLSX.utils.book_append_sheet(wb, sectionWs, safeSectionName);
+                });
+            });
+            
+            // Save workbook
+            XLSX.writeFile(wb, `All_Forms_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+            
+            // Hide loading spinner
+            hideSpinner();
+        })
+        .catch(error => {
+            console.error('Error exporting all forms to Excel:', error);
+            alert('Error exporting forms to Excel. Please try again.');
+            hideSpinner();
+        });
+}

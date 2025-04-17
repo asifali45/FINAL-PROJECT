@@ -19,7 +19,8 @@ login_manager = LoginManager()
 
 # Create the app
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "default_secret_key_for_development")
+# Set a fixed secret key for development - in production, use environment variable
+app.secret_key = "dev_secure_secret_key_for_form_digitizer_application"
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # needed for url_for to generate with https
 
 # Configure the database
@@ -34,11 +35,12 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["GOOGLE_API_KEY"] = os.environ.get("GOOGLE_API_KEY", "")
 
 # Log Google API configuration for debugging
-logging.debug(f"Google API key length: {len(app.config['GOOGLE_API_KEY']) if app.config['GOOGLE_API_KEY'] else 0}")
+google_api_key = os.environ.get("GOOGLE_API_KEY", "")
+logging.debug(f"Google API key length: {len(google_api_key) if google_api_key else 0}")
 
 # Configure CSRF protection
 app.config['WTF_CSRF_ENABLED'] = True
-app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(24)
+app.config['WTF_CSRF_SECRET_KEY'] = app.secret_key
 
 # Initialize the extensions with the app
 db.init_app(app)

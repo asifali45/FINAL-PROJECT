@@ -374,25 +374,53 @@ def export_form(form_id, format):
         return jsonify(data)
     elif format == 'excel':
         # Server-side Excel generation
-        import pandas as pd
         import io
         from flask import send_file
         import openpyxl
-        from openpyxl.styles import Font, Alignment, PatternFill
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        
+        # Debugging information
+        logger.debug(f"Generating Excel for form {form_id} - Template: {template_type}")
+        logger.debug(f"Number of sections: {len(complete_form_data)}")
+        for section_name, fields in complete_form_data.items():
+            logger.debug(f"Section {section_name} has {len(fields)} fields")
+            for field, value in fields.items():
+                logger.debug(f"  {field}: {value}")
         
         # Create an in-memory output file
         output = io.BytesIO()
         
-        # Create Excel workbook directly with openpyxl for better formatting control
+        # Create Excel workbook
         workbook = openpyxl.Workbook()
+        
+        # Style elements
+        title_font = Font(size=16, bold=True)
+        header_font = Font(size=12, bold=True)
+        section_font = Font(size=14, bold=True)
+        normal_font = Font(size=11)
+        
+        # Header fill
+        header_fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+        
+        # Borders
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Alignment
+        center_align = Alignment(horizontal='center', vertical='center')
+        left_align = Alignment(horizontal='left', vertical='center')
         
         # Create summary sheet
         summary_sheet = workbook.active
         summary_sheet.title = 'Summary'
         
-        # Add title
+        # Add title with formatting
         summary_sheet['A1'] = f"{template_type} Form"
-        summary_sheet['A1'].font = Font(size=16, bold=True)
+        summary_sheet['A1'].font = title_font
         
         # Add form details
         summary_sheet['A2'] = "Original File:"
@@ -401,9 +429,9 @@ def export_form(form_id, format):
         summary_sheet['A3'] = "Export Date:"
         summary_sheet['B3'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # Add form sections
+        # Add form sections header
         summary_sheet['A5'] = "Form Sections:"
-        summary_sheet['A5'].font = Font(bold=True)
+        summary_sheet['A5'].font = header_font
         
         # List all sections
         row = 6
@@ -411,106 +439,140 @@ def export_form(form_id, format):
             summary_sheet[f'A{row}'] = f"{idx + 1}. {section_name}"
             row += 1
         
-        # For each section, create a separate sheet with the data
-        for section_name, fields in complete_form_data.items():
-            # Create sheet for this section
-            safe_section_name = section_name.replace('/', '-').replace('\\', '-')[:31]
-            section_sheet = workbook.create_sheet(title=safe_section_name)
-            
-            # Add section title
-            section_sheet['A1'] = section_name
-            section_sheet['A1'].font = Font(size=14, bold=True)
-            
-            # Add field headers
-            section_sheet['A3'] = "Field"
-            section_sheet['B3'] = "Value"
-            
-            # Style the headers
-            for cell in section_sheet['3:3']:
-                cell.font = Font(bold=True)
-                cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
-            
-            # Add data
-            row = 4
-            for field, value in fields.items():
-                section_sheet[f'A{row}'] = field
-                section_sheet[f'B{row}'] = value or ''
-                row += 1
-            
-            # Adjust column width
-            section_sheet.column_dimensions['A'].width = 30
-            section_sheet.column_dimensions['B'].width = 50
+        # Set column widths
+        summary_sheet.column_dimensions['A'].width = 30
+        summary_sheet.column_dimensions['B'].width = 40
         
-        # Create a table view of all data
+        # For each section, create a detailed sheet with all fields and values
+        for section_name, fields in complete_form_data.items():
+            # Skip empty sections
+            if not fields:
+                continue
+                
+            # Create sheet name (ensure valid Excel sheet name)
+            safe_section_name = section_name.replace('/', '-').replace('\\', '-')[:31]
+            
+            try:
+                # Create sheet for this section
+                section_sheet = workbook.create_sheet(title=safe_section_name)
+                
+                # Add section title
+                section_sheet['A1'] = section_name
+                section_sheet['A1'].font = section_font
+                section_sheet.merge_cells('A1:B1')
+                
+                # Add field headers
+                section_sheet['A3'] = "Field"
+                section_sheet['B3'] = "Value"
+                
+                # Style headers
+                for cell in section_sheet['3:3']:
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.border = thin_border
+                    cell.alignment = center_align
+                
+                # Add data rows
+                row = 4
+                for field, value in fields.items():
+                    # Add field name
+                    section_sheet[f'A{row}'] = field
+                    section_sheet[f'A{row}'].border = thin_border
+                    section_sheet[f'A{row}'].alignment = left_align
+                    
+                    # Add field value (handle None values)
+                    section_sheet[f'B{row}'] = value if value is not None else ''
+                    section_sheet[f'B{row}'].border = thin_border
+                    section_sheet[f'B{row}'].alignment = left_align
+                    
+                    row += 1
+                
+                # Set column widths
+                section_sheet.column_dimensions['A'].width = 30
+                section_sheet.column_dimensions['B'].width = 50
+                
+                logger.debug(f"Added sheet {safe_section_name} with {len(fields)} fields")
+            except Exception as e:
+                logger.error(f"Error creating sheet {safe_section_name}: {str(e)}")
+                # Continue with next section on error
+        
+        # Create all data sheet (single table with all sections/fields)
         all_data_sheet = workbook.create_sheet(title='All Data')
         
+        # Add form title
+        all_data_sheet['A1'] = f"{template_type} Form - All Fields"
+        all_data_sheet['A1'].font = title_font
+        all_data_sheet.merge_cells('A1:C1')
+        
         # Add headers
-        all_data_sheet['A1'] = "Section"
-        all_data_sheet['B1'] = "Field"
-        all_data_sheet['C1'] = "Value"
+        all_data_sheet['A3'] = "Section"
+        all_data_sheet['B3'] = "Field"
+        all_data_sheet['C3'] = "Value"
         
         # Style headers
-        for cell in all_data_sheet['1:1']:
-            cell.font = Font(bold=True)
-            cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+        for cell in all_data_sheet['3:3']:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = thin_border
+            cell.alignment = center_align
         
-        # Add all data rows
-        row = 2
+        # Add all fields from all sections
+        row = 4
         for section, fields in complete_form_data.items():
+            # Skip empty sections
+            if not fields:
+                continue
+                
             for field, value in fields.items():
+                # Add section name
                 all_data_sheet[f'A{row}'] = section
+                all_data_sheet[f'A{row}'].border = thin_border
+                all_data_sheet[f'A{row}'].alignment = left_align
+                
+                # Add field name
                 all_data_sheet[f'B{row}'] = field
-                all_data_sheet[f'C{row}'] = value or ''
+                all_data_sheet[f'B{row}'].border = thin_border
+                all_data_sheet[f'B{row}'].alignment = left_align
+                
+                # Add value
+                all_data_sheet[f'C{row}'] = value if value is not None else ''
+                all_data_sheet[f'C{row}'].border = thin_border
+                all_data_sheet[f'C{row}'].alignment = left_align
+                
                 row += 1
         
-        # Adjust column widths
+        # Set column widths
         all_data_sheet.column_dimensions['A'].width = 25
         all_data_sheet.column_dimensions['B'].width = 30
         all_data_sheet.column_dimensions['C'].width = 50
         
-        # Create a pure tabular view for each section
-        for section_name, fields in complete_form_data.items():
-            # Create a table sheet where fields are columns
-            safe_table_name = f"{section_name[:20]}_Table".replace('/', '-').replace('\\', '-')[:31]
-            table_sheet = workbook.create_sheet(title=safe_table_name)
-            
-            # Add headers (field names)
-            col = 1
-            for field in fields.keys():
-                cell = table_sheet.cell(row=1, column=col)
-                cell.value = field
-                cell.font = Font(bold=True)
-                cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
-                
-                # Adjust column width based on field name length
-                column_letter = openpyxl.utils.get_column_letter(col)
-                table_sheet.column_dimensions[column_letter].width = max(15, len(field) * 1.2)
-                
-                col += 1
-            
-            # Add values
-            row = 2
-            col = 1
-            for field, value in fields.items():
-                table_sheet.cell(row=row, column=col).value = value or ''
-                col += 1
+        # Try to save the workbook
+        try:
+            workbook.save(output)
+            logger.debug("Excel file saved successfully")
+        except Exception as e:
+            logger.error(f"Error saving Excel file: {str(e)}")
+            flash("Error generating Excel file", "danger")
+            return redirect(url_for('view_form', form_id=form_id))
         
-        # Save workbook to output
-        workbook.save(output)
-        
-        # Set the file pointer at the beginning of the file
+        # Reset file pointer
         output.seek(0)
         
-        # Create a file name
+        # Create filename
         file_name = f"{template_type.replace(' ', '_')}_Form_{form_id}.xlsx"
         
-        # Return the Excel file for download
-        return send_file(
-            output, 
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            download_name=file_name,
-            as_attachment=True
-        )
+        # Return file
+        try:
+            return send_file(
+                output,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                download_name=file_name,
+                as_attachment=True
+            )
+        except Exception as e:
+            logger.error(f"Error sending Excel file: {str(e)}")
+            flash("Error downloading Excel file", "danger")
+            return redirect(url_for('view_form', form_id=form_id))
     else:
         flash('Invalid export format.', 'danger')
         return redirect(url_for('view_form', form_id=form_id))
@@ -767,9 +829,8 @@ def export_all_forms(format):
                 section_sheet['C3'] = "Created Date"
                 col = 4
                 
-                # Map column letters for wider sheets
-                def get_column_letter(col_idx):
-                    return openpyxl.utils.get_column_letter(col_idx)
+                # Import get_column_letter from openpyxl.utils directly
+                from openpyxl.utils import get_column_letter
                 
                 # Add field names as column headers
                 for field in sorted(all_fields):
@@ -834,6 +895,9 @@ def export_all_forms(format):
                 for form in forms:
                     form_section = form['extractedData'].get(section, {})
                     section_fields.update(form_section.keys())
+                
+                # Import get_column_letter if not already imported
+                from openpyxl.utils import get_column_letter
                 
                 for field in sorted(section_fields):
                     column_letter = get_column_letter(col)

@@ -1,0 +1,28 @@
+
+Form Digitizer Application Setup Guide
+
+1. Install Dependencies:
+   - Open terminal in project directory
+   - Run: pip install -r requirements.txt
+
+2. Environment Variables:
+   - Create a .env file in the root directory
+   - Add these variables:
+     DATABASE_URL=sqlite:///formdigitizer.db
+     GOOGLE_API_KEY=your_google_api_key
+
+3. Initialize Database:
+   - The database will be automatically created when you run the application
+   - Tables will be created based on the models
+
+4. Run the Application:
+   - Method 1 (Development):
+     python main.py
+     Access at: http://localhost:5000
+
+   - Method 2 (Production):
+     gunicorn --bind 0.0.0.0:5000 main:app
+     Access at: http://localhost:5000
+
+Note: This application is optimized for Replit. For the best experience and all features, 
+we recommend using Replit's environment instead.

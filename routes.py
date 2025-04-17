@@ -11,6 +11,7 @@ from app import app, db
 from models import User, ExtractedForm
 from forms import LoginForm, RegistrationForm, TemplateSelectionForm, FormUploadForm
 from gemini_form_extractor import GeminiFormExtractor
+from form_templates import FORM_TEMPLATES
 import tempfile
 
 # Set up logging
@@ -188,6 +189,7 @@ def review_data():
                 for field, value in fields.items():
                     field_id = f"{section}_{field}".replace(" ", "_").replace("'", "")
                     field_value = request.form.get(field_id, "")
+                    # Only add non-empty values to updated_data
                     section_data[field] = field_value
             else:
                 # Backward compatibility with old format
@@ -197,6 +199,9 @@ def review_data():
                     section_data[field] = field_value
             
             updated_data[section] = section_data
+
+        # Log data before saving
+        logger.debug(f"Saving updated form data: {updated_data}")
         
         # Save the extracted form data to the database
         extracted_form = ExtractedForm(
@@ -242,27 +247,34 @@ def view_form(form_id):
     logger.debug(f"Original form data retrieved: {form_data}")
     
     # Ensure all sections are dictionaries for consistency
-    # Sometimes data might not be properly saved or might be in an older format
-    for section, fields in list(form_data.items()):
-        if isinstance(fields, dict):
-            # Data is already in the correct format
-            continue
-        elif isinstance(fields, list):
-            # Convert list to empty dictionary
-            form_data[section] = {field: "" for field in fields}
-            logger.warning(f"Had to convert section {section} from list to dict format")
-        else:
-            # Invalid format, create an empty dictionary
-            logger.error(f"Invalid data format for section {section}: {type(fields)}")
-            form_data[section] = {}
+    # Add missing fields from template if not present
+    template_type = extracted_form.template_type
+    template = FORM_TEMPLATES.get(template_type, {})
     
-    logger.debug(f"Processed form data: {form_data}")
+    # Create a complete form structure with empty values if fields are missing
+    complete_form_data = {}
+    
+    for section_name, fields_info in template.items():
+        section_data = {}
+        # Initialize with empty data for all fields from template
+        for field_info in fields_info:
+            field_name = field_info["field"]
+            section_data[field_name] = ""
+            
+        # If section exists in saved data, use those values
+        if section_name in form_data and isinstance(form_data[section_name], dict):
+            for field_name, value in form_data[section_name].items():
+                section_data[field_name] = value
+                
+        complete_form_data[section_name] = section_data
+    
+    logger.debug(f"Complete form data with template fields: {complete_form_data}")
     
     return render_template(
         'review_data.html', 
         title='View Form', 
         template_type=extracted_form.template_type,
-        extracted_data=form_data,
+        extracted_data=complete_form_data,
         view_only=True,
         form_id=form_id
     )
@@ -283,19 +295,25 @@ def export_form(form_id, format):
     template_type = extracted_form.template_type
     
     # Ensure all sections are dictionaries for consistency
-    # Sometimes data might not be properly saved or might be in an older format
-    for section, fields in list(form_data.items()):
-        if isinstance(fields, dict):
-            # Data is already in the correct format
-            continue
-        elif isinstance(fields, list):
-            # Convert list to empty dictionary
-            form_data[section] = {field: "" for field in fields}
-            logger.warning(f"Had to convert section {section} from list to dict format")
-        else:
-            # Invalid format, create an empty dictionary
-            logger.error(f"Invalid data format for section {section}: {type(fields)}")
-            form_data[section] = {}
+    # Add missing fields from template if not present
+    template = FORM_TEMPLATES.get(template_type, {})
+    
+    # Create a complete form structure with empty values if fields are missing
+    complete_form_data = {}
+    
+    for section_name, fields_info in template.items():
+        section_data = {}
+        # Initialize with empty data for all fields from template
+        for field_info in fields_info:
+            field_name = field_info["field"]
+            section_data[field_name] = ""
+            
+        # If section exists in saved data, use those values
+        if section_name in form_data and isinstance(form_data[section_name], dict):
+            for field_name, value in form_data[section_name].items():
+                section_data[field_name] = value
+                
+        complete_form_data[section_name] = section_data
     
     # Return the data to be handled by client-side export functions
     if format == 'json':
@@ -304,7 +322,7 @@ def export_form(form_id, format):
             'formId': form_id,
             'templateType': template_type,
             'fileName': extracted_form.file_name,
-            'extractedData': form_data
+            'extractedData': complete_form_data
         }
         return jsonify(data)
     else:

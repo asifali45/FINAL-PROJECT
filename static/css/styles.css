@@ -193,3 +193,52 @@ body {
     margin-top: 20px;
     margin-bottom: 20px;
 }
+
+/* Camera styling */
+.camera-area {
+    border: 2px dashed var(--bs-secondary);
+    padding: 20px;
+    text-align: center;
+    margin: 20px 0;
+    border-radius: 10px;
+    transition: border-color 0.3s ease;
+}
+
+.camera-area:hover {
+    border-color: var(--bs-primary);
+}
+
+.camera-container {
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto 20px auto;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #333;
+}
+
+.camera-preview {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+#canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.camera-controls {
+    margin: 15px 0;
+}
+
+.camera-controls button {
+    margin: 0 5px;
+}
+
+.capture-success {
+    max-width: 500px;
+    margin: 15px auto;
+}

@@ -15,29 +15,78 @@
                     You have selected the <strong>{{ template }}</strong> template. Please upload your handwritten form to extract data.
                 </div>
                 
-                <form method="POST" action="{{ url_for('form_upload') }}" enctype="multipart/form-data">
+                <form method="POST" action="{{ url_for('form_upload') }}" enctype="multipart/form-data" id="upload-form">
                     {{ form.hidden_tag() }}
                     
-                    <div class="upload-area">
-                        <i class="fas fa-file-upload fa-4x text-primary mb-3"></i>
-                        <h3>Drag & Drop your file here</h3>
-                        <p class="text-muted">or click to browse files</p>
-                        <p class="file-name-display text-info">No file selected</p>
+                    <!-- Tab navigation for upload methods -->
+                    <ul class="nav nav-tabs mb-3" id="uploadTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="file-tab" data-bs-toggle="tab" data-bs-target="#file-upload" type="button" role="tab" aria-controls="file-upload" aria-selected="true">
+                                <i class="fas fa-file me-2"></i>Upload File
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="camera-tab" data-bs-toggle="tab" data-bs-target="#camera-upload" type="button" role="tab" aria-controls="camera-upload" aria-selected="false">
+                                <i class="fas fa-camera me-2"></i>Use Camera
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <!-- Tab content -->
+                    <div class="tab-content" id="uploadTabsContent">
+                        <!-- File Upload Tab -->
+                        <div class="tab-pane fade show active" id="file-upload" role="tabpanel" aria-labelledby="file-tab">
+                            <div class="upload-area">
+                                <i class="fas fa-file-upload fa-4x text-primary mb-3"></i>
+                                <h3>Drag & Drop your file here</h3>
+                                <p class="text-muted">or click to browse files</p>
+                                <p class="file-name-display text-info">No file selected</p>
+                                
+                                {{ form.form_file(class="d-none", id="form_file") }}
+                                
+                                {% for error in form.form_file.errors %}
+                                    <div class="text-danger mt-2">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
                         
-                        {{ form.form_file(class="d-none", id="form_file") }}
-                        
-                        {% for error in form.form_file.errors %}
-                            <div class="text-danger mt-2">{{ error }}</div>
-                        {% endfor %}
+                        <!-- Camera Upload Tab -->
+                        <div class="tab-pane fade" id="camera-upload" role="tabpanel" aria-labelledby="camera-tab">
+                            <div class="camera-area">
+                                <div class="camera-container">
+                                    <video id="webcam" autoplay playsinline class="camera-preview"></video>
+                                    <canvas id="canvas" class="d-none"></canvas>
+                                </div>
+                                
+                                <div class="camera-controls text-center">
+                                    <button type="button" id="startCamera" class="btn btn-info mb-2">
+                                        <i class="fas fa-video me-2"></i>Start Camera
+                                    </button>
+                                    <button type="button" id="capturePhoto" class="btn btn-primary mb-2 d-none">
+                                        <i class="fas fa-camera me-2"></i>Capture Photo
+                                    </button>
+                                    <button type="button" id="retakePhoto" class="btn btn-warning mb-2 d-none">
+                                        <i class="fas fa-redo me-2"></i>Retake Photo
+                                    </button>
+                                    <div class="alert alert-success capture-success d-none mt-2">
+                                        <i class="fas fa-check-circle me-2"></i>Photo captured successfully! You can proceed with form extraction.
+                                    </div>
+                                </div>
+                                
+                                <!-- Hidden input to store the captured image data -->
+                                <input type="hidden" name="camera_image" id="camera_image">
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="alert alert-warning">
+                    <div class="alert alert-warning mt-3">
                         <h5><i class="fas fa-exclamation-triangle me-2"></i>Important Notes:</h5>
                         <ul class="mb-0">
                             <li>Supported file formats: JPG, JPEG, PNG, PDF</li>
                             <li>Maximum file size: 10MB</li>
                             <li>For best results, ensure good lighting and clarity in your handwritten form</li>
                             <li>The form should be properly aligned and not skewed</li>
+                            <li>When using camera, hold the camera steady and ensure the form is clearly visible</li>
                         </ul>
                     </div>
                     
@@ -56,4 +105,139 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Camera functionality scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const startCameraBtn = document.getElementById('startCamera');
+    const capturePhotoBtn = document.getElementById('capturePhoto');
+    const retakePhotoBtn = document.getElementById('retakePhoto');
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('canvas');
+    const cameraImageInput = document.getElementById('camera_image');
+    const captureSuccess = document.querySelector('.capture-success');
+    const uploadForm = document.getElementById('upload-form');
+    
+    // Variables
+    let stream = null;
+    let photoTaken = false;
+    
+    // Camera tab change event
+    document.getElementById('camera-tab').addEventListener('click', function() {
+        if (!stream && !photoTaken) {
+            startCameraBtn.classList.remove('d-none');
+            capturePhotoBtn.classList.add('d-none');
+            retakePhotoBtn.classList.add('d-none');
+        }
+    });
+    
+    // Start camera
+    startCameraBtn.addEventListener('click', async function() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment', // Prefer rear camera on mobile
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 } 
+                } 
+            });
+            video.srcObject = stream;
+            
+            startCameraBtn.classList.add('d-none');
+            capturePhotoBtn.classList.remove('d-none');
+            captureSuccess.classList.add('d-none');
+            
+            // Set canvas dimensions to match video
+            video.addEventListener('loadedmetadata', function() {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+            });
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+            alert("Unable to access the camera. Please ensure you've granted camera permissions or try a different device.");
+        }
+    });
+    
+    // Capture photo
+    capturePhotoBtn.addEventListener('click', function() {
+        // Draw current video frame to canvas
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get image data as base64-encoded string
+        const imageData = canvas.toDataURL('image/jpeg');
+        
+        // Store in hidden input
+        cameraImageInput.value = imageData;
+        
+        // Update UI
+        capturePhotoBtn.classList.add('d-none');
+        retakePhotoBtn.classList.remove('d-none');
+        captureSuccess.classList.remove('d-none');
+        
+        // Show captured image
+        video.style.display = 'none';
+        canvas.classList.remove('d-none');
+        
+        // Stop camera stream
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+        
+        photoTaken = true;
+    });
+    
+    // Retake photo
+    retakePhotoBtn.addEventListener('click', async function() {
+        // Clear canvas and hidden input
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        cameraImageInput.value = '';
+        
+        // Show video again
+        video.style.display = 'block';
+        canvas.classList.add('d-none');
+        
+        // Restart camera
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 } 
+                } 
+            });
+            video.srcObject = stream;
+            
+            // Update UI
+            retakePhotoBtn.classList.add('d-none');
+            capturePhotoBtn.classList.remove('d-none');
+            captureSuccess.classList.add('d-none');
+            
+            photoTaken = false;
+        } catch (err) {
+            console.error("Error restarting camera:", err);
+            alert("Unable to restart the camera. Please try refreshing the page.");
+        }
+    });
+    
+    // Clean up on form submission
+    uploadForm.addEventListener('submit', function() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    });
+    
+    // Clean up on page unload
+    window.addEventListener('beforeunload', function() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    });
+});
+</script>
 {% endblock %}

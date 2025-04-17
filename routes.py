@@ -1,9 +1,9 @@
 import os
 import logging
 import json
-import pandas as pd
+import base64
 from datetime import datetime
-from flask import render_template, url_for, flash, redirect, request, jsonify, current_app, session
+from flask import render_template, url_for, flash, redirect, request, jsonify, session
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.utils import secure_filename
 from flask_wtf.csrf import generate_csrf
@@ -102,15 +102,44 @@ def form_upload():
     selected_template = session['selected_template']
     form = FormUploadForm()
     
-    if form.validate_on_submit():
-        # Save the uploaded file temporarily
-        uploaded_file = form.form_file.data
+    if form.validate_on_submit() or 'camera_image' in request.form:
         temp_dir = tempfile.mkdtemp()
-        filename = secure_filename(uploaded_file.filename)
-        temp_path = os.path.join(temp_dir, filename)
-        uploaded_file.save(temp_path)
+        temp_path = ""
+        filename = ""
         
         try:
+            # Check if we received camera data or file upload
+            if 'camera_image' in request.form and request.form['camera_image']:
+                # Handle camera image (base64 encoded)
+                camera_data = request.form['camera_image']
+                
+                # Remove the data URL prefix if present (e.g., "data:image/jpeg;base64,")
+                if ',' in camera_data:
+                    camera_data = camera_data.split(',', 1)[1]
+                
+                # Decode base64 data
+                image_data = base64.b64decode(camera_data)
+                
+                # Save to temp file
+                filename = f"camera_capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+                temp_path = os.path.join(temp_dir, filename)
+                
+                with open(temp_path, 'wb') as f:
+                    f.write(image_data)
+                
+                logger.debug(f"Saved camera capture to {temp_path}")
+                
+            elif form.form_file.data:
+                # Handle regular file upload
+                uploaded_file = form.form_file.data
+                filename = secure_filename(uploaded_file.filename)
+                temp_path = os.path.join(temp_dir, filename)
+                uploaded_file.save(temp_path)
+                logger.debug(f"Saved uploaded file to {temp_path}")
+            else:
+                flash('No file or camera image provided', 'danger')
+                return render_template('form_upload.html', title='Upload Form', form=form, template=selected_template)
+            
             # Extract data using Google Gemini API
             api_key = app.config['GOOGLE_API_KEY']
             
@@ -135,7 +164,8 @@ def form_upload():
             # Clean up the temporary file
             if os.path.exists(temp_path):
                 os.remove(temp_path)
-            os.rmdir(temp_dir)
+            if os.path.exists(temp_dir):
+                os.rmdir(temp_dir)
     
     return render_template('form_upload.html', title='Upload Form', form=form, template=selected_template)
 

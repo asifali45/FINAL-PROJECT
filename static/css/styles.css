@@ -186,6 +186,7 @@ body {
 /* Navigation links */
 .nav-link {
     position: relative;
+    color: var(--text-gray) !important;
 }
 
 .nav-link:after {
@@ -203,6 +204,23 @@ body {
 .nav-link.active:after {
     width: 100%;
     left: 0;
+}
+
+/* Dropdown styling */
+.dropdown-menu {
+    background-color: var(--medium-green);
+    border: 1px solid rgba(0, 230, 165, 0.2);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.dropdown-item {
+    color: var(--text-gray);
+    transition: all 0.2s ease;
+}
+
+.dropdown-item:hover, .dropdown-item:focus {
+    background-color: rgba(0, 230, 165, 0.1);
+    color: var(--light-green);
 }
 
 /* Buttons with new theme */

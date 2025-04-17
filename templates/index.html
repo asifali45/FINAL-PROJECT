@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}FormOCR - Intelligent Document Processing{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="feature-tag">
+        Intelligent Document Processing
+    </div>
+    
+    <h1 class="hero-title">
+        Form<span class="highlight">OCR</span>
+    </h1>
+    
+    <p class="hero-subtitle">
+        Transform your documents into actionable data with our advanced extraction technology
+    </p>
+    
+    <div class="mt-4">
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('template_selection') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus-circle me-2"></i> Get Started
+            </a>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary btn-lg ms-2">
+                <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+            </a>
+        {% else %}
+            <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus-circle me-2"></i> Get Started
+            </a>
+            <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg ms-2">
+                <i class="fas fa-sign-in-alt me-2"></i> Login
+            </a>
+        {% endif %}
+    </div>
+    
+    <!-- Scroll indicator -->
+    <div class="scroll-indicator">
+        <i class="fas fa-chevron-down text-light-green"></i>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5 mt-5">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-md-12">
+                <h2 class="mb-4">Our <span style="color: var(--light-green);">Form Templates</span></h2>
+                <p class="lead">Choose from our optimized form templates for quick and accurate extraction</p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Biodata Form Card -->
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 bg-medium-green border-light-green">
+                    <div class="card-body text-center">
+                        <div class="mb-4">
+                            <i class="fas fa-user-circle fa-3x" style="color: var(--light-green);"></i>
+                        </div>
+                        <h5 class="card-title">Biodata</h5>
+                        <p class="card-text">Personal information forms with comprehensive field detection for identity documents.</p>
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('template_selection') }}" class="btn btn-outline-primary mt-2">Try Now</a>
+                        {% else %}
+                            <a href="{{ url_for('register') }}" class="btn btn-outline-primary mt-2">Sign Up to Try</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Admission Form Card -->
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 bg-medium-green border-light-green">
+                    <div class="card-body text-center">
+                        <div class="mb-4">
+                            <i class="fas fa-graduation-cap fa-3x" style="color: var(--light-green);"></i>
+                        </div>
+                        <h5 class="card-title">Admission Form</h5>
+                        <p class="card-text">Educational admission forms with academic and personal details extraction.</p>
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('template_selection') }}" class="btn btn-outline-primary mt-2">Try Now</a>
+                        {% else %}
+                            <a href="{{ url_for('register') }}" class="btn btn-outline-primary mt-2">Sign Up to Try</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bank Account Form Card -->
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 bg-medium-green border-light-green">
+                    <div class="card-body text-center">
+                        <div class="mb-4">
+                            <i class="fas fa-landmark fa-3x" style="color: var(--light-green);"></i>
+                        </div>
+                        <h5 class="card-title">Bank Account</h5>
+                        <p class="card-text">Financial forms with account details and personal information extraction.</p>
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('template_selection') }}" class="btn btn-outline-primary mt-2">Try Now</a>
+                        {% else %}
+                            <a href="{{ url_for('register') }}" class="btn btn-outline-primary mt-2">Sign Up to Try</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works Section -->
+<section class="py-5 bg-medium-green">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-md-12">
+                <h2 class="mb-4">How It <span style="color: var(--light-green);">Works</span></h2>
+                <p class="lead">Simple steps to digitize your handwritten forms</p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-4 mb-4 text-center">
+                <div class="p-3">
+                    <div class="mb-4 rounded-circle bg-dark-green d-inline-flex justify-content-center align-items-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-file-upload fa-2x" style="color: var(--light-green);"></i>
+                    </div>
+                    <h5>1. Upload Form</h5>
+                    <p>Take a photo or upload an image of your handwritten form</p>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4 text-center">
+                <div class="p-3">
+                    <div class="mb-4 rounded-circle bg-dark-green d-inline-flex justify-content-center align-items-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-robot fa-2x" style="color: var(--light-green);"></i>
+                    </div>
+                    <h5>2. AI Extraction</h5>
+                    <p>Our AI analyzes and extracts all form data automatically</p>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4 text-center">
+                <div class="p-3">
+                    <div class="mb-4 rounded-circle bg-dark-green d-inline-flex justify-content-center align-items-center" style="width: 80px; height: 80px;">
+                        <i class="fas fa-file-excel fa-2x" style="color: var(--light-green);"></i>
+                    </div>
+                    <h5>3. Export Data</h5>
+                    <p>Review and export your data to Excel for immediate use</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-5 text-center">
+    <div class="container">
+        <h2 class="mb-4">Ready to <span style="color: var(--light-green);">Get Started?</span></h2>
+        <p class="lead mb-4">Join us today and transform your document processing workflow</p>
+        
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('template_selection') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus-circle me-2"></i> Create New Form
+            </a>
+        {% else %}
+            <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-user-plus me-2"></i> Sign Up Now
+            </a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .border-light-green {
+        border: 1px solid rgba(0, 230, 165, 0.2);
+    }
+    
+    .bg-medium-green {
+        background-color: var(--medium-green);
+    }
+    
+    .bg-dark-green {
+        background-color: var(--dark-green);
+    }
+    
+    .text-light-green {
+        color: var(--light-green);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

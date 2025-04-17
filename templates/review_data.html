@@ -71,9 +71,9 @@
                             </a>
                         </div>
                         <div class="col-md-4">
-                            <button type="button" class="btn btn-success w-100" onclick="exportToExcel({{ form_id }})">
+                            <a href="{{ url_for('export_form', form_id=form_id, format='excel') }}" class="btn btn-success w-100">
                                 <i class="fas fa-file-excel me-2"></i>Export to Excel
-                            </button>
+                            </a>
                         </div>
                         <div class="col-md-4">
                             <button type="button" class="btn btn-danger w-100" onclick="exportToPDF({{ form_id }})">

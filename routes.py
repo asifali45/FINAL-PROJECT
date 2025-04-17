@@ -372,6 +372,79 @@ def export_form(form_id, format):
         logger.debug(f"Sample data from first section: {list(data['extractedData'].values())[0] if data['extractedData'] else 'No data'}")
         
         return jsonify(data)
+    elif format == 'excel':
+        # Server-side Excel generation
+        import pandas as pd
+        import io
+        from flask import send_file
+        
+        # Create an in-memory output file
+        output = io.BytesIO()
+        
+        # Create a Pandas Excel writer using the output buffer
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Create summary sheet
+            summary_data = [
+                [f"{template_type} Form"],
+                ["Original File:", extracted_form.file_name],
+                ["Export Date:", datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
+                [],
+                ["Form Sections:"]
+            ]
+            
+            # Add sections to summary
+            for idx, section_name in enumerate(complete_form_data.keys()):
+                summary_data.append([f"{idx + 1}. {section_name}"])
+            
+            # Create DataFrame for summary and write to sheet
+            summary_df = pd.DataFrame(summary_data)
+            summary_df.to_excel(writer, sheet_name='Summary', header=False, index=False)
+            
+            # Create detailed sheets for each section
+            for section_name, fields in complete_form_data.items():
+                # Create data list for section with field-value pairs
+                section_data = []
+                section_data.append([section_name])
+                section_data.append([])  # Empty row
+                section_data.append(["Field", "Value"])
+                
+                for field, value in fields.items():
+                    section_data.append([field, value or ''])
+                
+                # Create DataFrame and write to sheet
+                section_df = pd.DataFrame(section_data)
+                safe_section_name = section_name.replace('/', '-').replace('\\', '-')[:31]
+                section_df.to_excel(writer, sheet_name=safe_section_name, header=False, index=False)
+                
+                # Also create a table view of the data
+                fields_df = pd.DataFrame([fields])
+                table_sheet_name = f"{safe_section_name}_Table"[:31]
+                fields_df.to_excel(writer, sheet_name=table_sheet_name, index=False)
+            
+            # Create a consolidated "All Data" sheet with all section data
+            all_data = []
+            all_data.append(["Section", "Field", "Value"])
+            
+            for section, fields in complete_form_data.items():
+                for field, value in fields.items():
+                    all_data.append([section, field, value or ''])
+            
+            all_data_df = pd.DataFrame(all_data[1:], columns=all_data[0])
+            all_data_df.to_excel(writer, sheet_name='All Data', index=False)
+        
+        # Set the file pointer at the beginning of the file
+        output.seek(0)
+        
+        # Create a file name
+        file_name = f"{template_type.replace(' ', '_')}_Form_{form_id}.xlsx"
+        
+        # Return the Excel file for download
+        return send_file(
+            output, 
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            download_name=file_name,
+            as_attachment=True
+        )
     else:
         flash('Invalid export format.', 'danger')
         return redirect(url_for('view_form', form_id=form_id))
@@ -459,9 +532,9 @@ def export_all_forms(format):
         forms_by_template[template_type].append(form_info)
         logger.debug(f"Added form {form.id} to {template_type} group")
     
-    # Return the data to be handled by client-side export functions
+    # Return the data based on format
     if format == 'json':
-        # For Excel export, we'll use json as an intermediate
+        # For client-side Excel export, we'll still provide the JSON
         data = {
             'userId': current_user.id,
             'username': current_user.username,
@@ -482,6 +555,188 @@ def export_all_forms(format):
                 logger.debug(f"Sample section {sample_section} data: {sample_form['extractedData'][sample_section]}")
         
         return jsonify(data)
+    elif format == 'excel':
+        # Server-side Excel generation for all forms
+        import pandas as pd
+        import io
+        from flask import send_file
+        
+        # Create an in-memory output file
+        output = io.BytesIO()
+        
+        # Create a Pandas Excel writer using the output buffer
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Create summary sheet
+            summary_data = [
+                ['FormOCR - All Forms Export'],
+                ['User:', current_user.username],
+                ['Export Date:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
+                [],
+                ['Templates Included:']
+            ]
+            
+            # Add template types to summary
+            for idx, (template_type, forms) in enumerate(forms_by_template.items()):
+                form_count = len(forms)
+                summary_data.append([f"{idx + 1}. {template_type} ({form_count} forms)"])
+            
+            # Create DataFrame for summary and write to sheet
+            summary_df = pd.DataFrame(summary_data)
+            summary_df.to_excel(writer, sheet_name='Summary', header=False, index=False)
+            
+            # Process each template type
+            for template_type, forms in forms_by_template.items():
+                if not forms:
+                    continue  # Skip if no forms for this template
+                
+                # Create a summary sheet for this template type with form details
+                template_summary_data = [
+                    [f"{template_type} Forms Summary"],
+                    [],
+                    ['Form ID', 'File Name', 'Created Date']
+                ]
+                
+                # Add each form to the summary
+                for form in forms:
+                    template_summary_data.append([form['formId'], form['fileName'], form['createdAt']])
+                
+                # Create DataFrame for template summary and write to sheet
+                template_summary_df = pd.DataFrame(template_summary_data[2:], columns=template_summary_data[2])
+                template_summary_df.to_excel(
+                    writer, 
+                    sheet_name=f"{template_type[:27]} Summary"[:31], 
+                    header=True, 
+                    index=False,
+                    startrow=2
+                )
+                
+                # Add title to the sheet
+                worksheet = writer.sheets[f"{template_type[:27]} Summary"[:31]]
+                worksheet.cell(row=1, column=1, value=template_summary_data[0][0])
+                
+                # For each section in the template, create a separate sheet with all forms
+                template_structure = forms[0]['extractedData']
+                for section_name in template_structure.keys():
+                    # Get all fields for this section
+                    all_fields = set()
+                    for form in forms:
+                        form_section = form['extractedData'].get(section_name, {})
+                        all_fields.update(form_section.keys())
+                    
+                    # Create headers: basic form info + all fields
+                    headers = ['Form ID', 'File Name', 'Created Date'] + sorted(list(all_fields))
+                    
+                    # Create rows for each form
+                    rows = []
+                    for form in forms:
+                        row = [
+                            form['formId'],
+                            form['fileName'],
+                            form['createdAt']
+                        ]
+                        
+                        # Add values for each field
+                        form_section = form['extractedData'].get(section_name, {})
+                        for field in sorted(all_fields):
+                            row.append(form_section.get(field, ''))
+                        
+                        rows.append(row)
+                    
+                    # Create DataFrame and write to sheet
+                    section_df = pd.DataFrame(rows, columns=headers)
+                    safe_template = template_type.replace('/', '-').replace('\\', '-')[:15]
+                    safe_section = section_name.replace('/', '-').replace('\\', '-')[:15]
+                    sheet_name = f"{safe_template}-{safe_section}"[:31]
+                    section_df.to_excel(writer, sheet_name=sheet_name, index=False)
+                
+                # Create a detailed sheet with all forms' data for this template
+                detailed_data = [
+                    [f"{template_type} - All Forms Details"],
+                    []
+                ]
+                
+                # Add each form with all its data
+                for form in forms:
+                    detailed_data.append([f"Form ID: {form['formId']}", f"File: {form['fileName']}", f"Date: {form['createdAt']}"])
+                    detailed_data.append([])
+                    
+                    # Add sections and fields
+                    for section, fields in form['extractedData'].items():
+                        detailed_data.append([section])
+                        detailed_data.append(['Field', 'Value'])
+                        
+                        for field, value in fields.items():
+                            detailed_data.append([field, value or ''])
+                        
+                        detailed_data.append([])  # Empty row after section
+                    
+                    detailed_data.append([])  # Extra empty row between forms
+                
+                # Create DataFrame and write to sheet
+                detailed_df = pd.DataFrame(detailed_data)
+                safe_template_name = template_type.replace('/', '-').replace('\\', '-')[:23]
+                detailed_df.to_excel(
+                    writer, 
+                    sheet_name=f"{safe_template_name} Details"[:31],
+                    header=False,
+                    index=False
+                )
+                
+                # Create a consolidated table with all fields from all sections
+                all_fields_by_section = {}
+                for section in template_structure.keys():
+                    all_fields_by_section[section] = set()
+                    for form in forms:
+                        form_section = form['extractedData'].get(section, {})
+                        all_fields_by_section[section].update(form_section.keys())
+                
+                # Create headers
+                consol_headers = ['Form ID', 'File Name', 'Created Date']
+                
+                # Add section-field headers
+                for section, fields in all_fields_by_section.items():
+                    for field in sorted(fields):
+                        consol_headers.append(f"{section} - {field}")
+                
+                # Create rows
+                consol_rows = []
+                for form in forms:
+                    row = [
+                        form['formId'],
+                        form['fileName'],
+                        form['createdAt']
+                    ]
+                    
+                    # Add values for each section-field
+                    for section, fields in all_fields_by_section.items():
+                        form_section = form['extractedData'].get(section, {})
+                        for field in sorted(fields):
+                            row.append(form_section.get(field, ''))
+                    
+                    consol_rows.append(row)
+                
+                # Create DataFrame and write to sheet
+                consol_df = pd.DataFrame(consol_rows, columns=consol_headers)
+                safe_template_consol = template_type.replace('/', '-').replace('\\', '-')[:20]
+                consol_df.to_excel(
+                    writer, 
+                    sheet_name=f"{safe_template_consol}"[:31],
+                    index=False
+                )
+            
+        # Reset the file pointer
+        output.seek(0)
+        
+        # Create filename
+        file_name = f"All_Forms_Export_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+        
+        # Return the Excel file for download
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            download_name=file_name,
+            as_attachment=True
+        )
     else:
         flash('Invalid export format.', 'danger')
         return redirect(url_for('dashboard'))

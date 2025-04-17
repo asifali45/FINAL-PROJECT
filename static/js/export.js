@@ -172,10 +172,23 @@ function exportToExcel(formId) {
     // Show loading spinner
     showSpinner();
     
+    console.log(`Starting export for form ID: ${formId}`);
+    
     // Fetch the form data
     fetch(`/export-form/${formId}/json`)
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response received:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Data received:', data);
+            console.log('Data template type:', data.templateType);
+            console.log('Data sections:', Object.keys(data.extractedData));
+            console.log('First section data:', Object.values(data.extractedData)[0]);
+            
             const { templateType, fileName, extractedData } = data;
             
             // Create a new workbook
@@ -292,10 +305,33 @@ function exportAllFormsToExcel() {
     // Show loading spinner
     showSpinner();
     
+    console.log('Starting export for all forms');
+    
     // Fetch all forms data
     fetch('/export-all-forms/json')
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response received for all forms export:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('All forms data received');
+            console.log('Templates available:', Object.keys(data.formsByTemplate));
+            
+            // Log first form of each template type as a sample
+            for (const [templateType, forms] of Object.entries(data.formsByTemplate)) {
+                if (forms.length > 0) {
+                    console.log(`Sample form for template ${templateType}:`, forms[0]);
+                    console.log(`Sample form sections:`, Object.keys(forms[0].extractedData));
+                    
+                    // Log one section's data as example
+                    const sampleSection = Object.keys(forms[0].extractedData)[0];
+                    console.log(`Sample section ${sampleSection} data:`, forms[0].extractedData[sampleSection]);
+                }
+            }
+            
             const { username, exportDate, formsByTemplate } = data;
             
             // Create a new workbook

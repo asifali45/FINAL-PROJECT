@@ -313,9 +313,16 @@ def export_form(form_id, format):
         flash('You do not have permission to export this form.', 'danger')
         return redirect(url_for('dashboard'))
     
+    # For debugging: Print raw data from database
+    raw_data = extracted_form.extracted_data
+    logger.debug(f"Raw data from DB: {raw_data}")
+    
     # Get the form data
     form_data = extracted_form.get_data()
+    logger.debug(f"Parsed JSON data: {form_data}")
+    
     template_type = extracted_form.template_type
+    logger.debug(f"Template type: {template_type}")
     
     # Ensure all sections are dictionaries for consistency
     # Add missing fields from template if not present
@@ -324,19 +331,32 @@ def export_form(form_id, format):
     # Create a complete form structure with empty values if fields are missing
     complete_form_data = {}
     
+    # Debug: Log template structure
+    logger.debug(f"Template structure: {template.keys()}")
+    
     for section_name, fields_info in template.items():
         section_data = {}
+        logger.debug(f"Processing section: {section_name} with {len(fields_info)} fields")
+        
         # Initialize with empty data for all fields from template
         for field_info in fields_info:
             field_name = field_info["field"]
             section_data[field_name] = ""
+            logger.debug(f"Initialized field: {field_name}")
             
         # If section exists in saved data, use those values
         if section_name in form_data and isinstance(form_data[section_name], dict):
+            logger.debug(f"Found section {section_name} in form data with {len(form_data[section_name])} fields")
             for field_name, value in form_data[section_name].items():
                 section_data[field_name] = value
+                logger.debug(f"Set field {field_name} = '{value}'")
+        else:
+            logger.debug(f"Section {section_name} not found in form data or not a dictionary")
                 
         complete_form_data[section_name] = section_data
+    
+    # Final debug: Log complete data being sent
+    logger.debug(f"Complete data being sent: {complete_form_data}")
     
     # Return the data to be handled by client-side export functions
     if format == 'json':
@@ -347,6 +367,10 @@ def export_form(form_id, format):
             'fileName': extracted_form.file_name,
             'extractedData': complete_form_data
         }
+        logger.debug(f"JSON response keys: {data.keys()}")
+        logger.debug(f"JSON extractedData sections: {data['extractedData'].keys()}")
+        logger.debug(f"Sample data from first section: {list(data['extractedData'].values())[0] if data['extractedData'] else 'No data'}")
+        
         return jsonify(data)
     else:
         flash('Invalid export format.', 'danger')
@@ -358,8 +382,11 @@ def export_all_forms(format):
     """
     Export all forms for the current user, organized by template type
     """
+    logger.debug("Starting export-all-forms")
+    
     # Get all the user's extracted forms
     extracted_forms = ExtractedForm.query.filter_by(user_id=current_user.id).order_by(ExtractedForm.created_at.desc()).all()
+    logger.debug(f"Found {len(extracted_forms)} forms to export")
     
     if not extracted_forms:
         flash('No forms to export.', 'warning')
@@ -370,20 +397,32 @@ def export_all_forms(format):
     
     for form in extracted_forms:
         template_type = form.template_type
+        logger.debug(f"Processing form ID: {form.id}, Template: {template_type}, File: {form.file_name}")
         
         # Initialize entry for this template type if it doesn't exist
         if template_type not in forms_by_template:
             forms_by_template[template_type] = []
+            logger.debug(f"Created new template group: {template_type}")
+            
+        # Get raw form data for debugging
+        raw_data = form.extracted_data
+        logger.debug(f"Raw data from DB for form {form.id}: {raw_data[:100]}...")
             
         # Get form data
         form_data = form.get_data()
+        logger.debug(f"Parsed JSON data for form {form.id}: {str(form_data)[:200]}...")
         
         # Ensure form data follows the template structure
         template = FORM_TEMPLATES.get(template_type, {})
+        logger.debug(f"Template sections for {template_type}: {template.keys()}")
+        
         complete_form_data = {}
         
+        # Process each section
         for section_name, fields_info in template.items():
             section_data = {}
+            logger.debug(f"Processing section: {section_name} with {len(fields_info)} fields")
+            
             # Initialize with empty data for all fields from template
             for field_info in fields_info:
                 field_name = field_info["field"]
@@ -391,10 +430,22 @@ def export_all_forms(format):
                 
             # If section exists in saved data, use those values
             if section_name in form_data and isinstance(form_data[section_name], dict):
+                logger.debug(f"Found section {section_name} in form data with {len(form_data[section_name])} fields")
                 for field_name, value in form_data[section_name].items():
                     section_data[field_name] = value
+                    logger.debug(f"Set field {field_name} = '{value}'")
+            else:
+                logger.debug(f"Section {section_name} not found in form data or not a dictionary")
                     
             complete_form_data[section_name] = section_data
+            
+        # Verify data is correctly populated
+        logger.debug(f"Processed form {form.id} has {len(complete_form_data)} sections")
+        for section, fields in complete_form_data.items():
+            logger.debug(f"Section {section} has {len(fields)} fields")
+            for field, value in fields.items():
+                if value:  # Only log non-empty values to reduce log size
+                    logger.debug(f"Field {field} = '{value}'")
             
         # Add form metadata
         form_info = {
@@ -406,6 +457,7 @@ def export_all_forms(format):
         
         # Add to the template group
         forms_by_template[template_type].append(form_info)
+        logger.debug(f"Added form {form.id} to {template_type} group")
     
     # Return the data to be handled by client-side export functions
     if format == 'json':
@@ -416,6 +468,19 @@ def export_all_forms(format):
             'exportDate': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'formsByTemplate': forms_by_template
         }
+        
+        # Final verification
+        for template_type, forms in forms_by_template.items():
+            logger.debug(f"Template {template_type} has {len(forms)} forms")
+            # Log details of first form as a sample
+            if forms:
+                sample_form = forms[0]
+                logger.debug(f"Sample form ID: {sample_form['formId']}")
+                logger.debug(f"Sample form extracted_data sections: {sample_form['extractedData'].keys()}")
+                # Log some field values from the first section
+                sample_section = list(sample_form['extractedData'].keys())[0]
+                logger.debug(f"Sample section {sample_section} data: {sample_form['extractedData'][sample_section]}")
+        
         return jsonify(data)
     else:
         flash('Invalid export format.', 'danger')

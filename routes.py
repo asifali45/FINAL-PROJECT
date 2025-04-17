@@ -377,60 +377,126 @@ def export_form(form_id, format):
         import pandas as pd
         import io
         from flask import send_file
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
         
         # Create an in-memory output file
         output = io.BytesIO()
         
-        # Create a Pandas Excel writer using the output buffer
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            # Create summary sheet
-            summary_data = [
-                [f"{template_type} Form"],
-                ["Original File:", extracted_form.file_name],
-                ["Export Date:", datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
-                [],
-                ["Form Sections:"]
-            ]
+        # Create Excel workbook directly with openpyxl for better formatting control
+        workbook = openpyxl.Workbook()
+        
+        # Create summary sheet
+        summary_sheet = workbook.active
+        summary_sheet.title = 'Summary'
+        
+        # Add title
+        summary_sheet['A1'] = f"{template_type} Form"
+        summary_sheet['A1'].font = Font(size=16, bold=True)
+        
+        # Add form details
+        summary_sheet['A2'] = "Original File:"
+        summary_sheet['B2'] = extracted_form.file_name
+        
+        summary_sheet['A3'] = "Export Date:"
+        summary_sheet['B3'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Add form sections
+        summary_sheet['A5'] = "Form Sections:"
+        summary_sheet['A5'].font = Font(bold=True)
+        
+        # List all sections
+        row = 6
+        for idx, section_name in enumerate(complete_form_data.keys()):
+            summary_sheet[f'A{row}'] = f"{idx + 1}. {section_name}"
+            row += 1
+        
+        # For each section, create a separate sheet with the data
+        for section_name, fields in complete_form_data.items():
+            # Create sheet for this section
+            safe_section_name = section_name.replace('/', '-').replace('\\', '-')[:31]
+            section_sheet = workbook.create_sheet(title=safe_section_name)
             
-            # Add sections to summary
-            for idx, section_name in enumerate(complete_form_data.keys()):
-                summary_data.append([f"{idx + 1}. {section_name}"])
+            # Add section title
+            section_sheet['A1'] = section_name
+            section_sheet['A1'].font = Font(size=14, bold=True)
             
-            # Create DataFrame for summary and write to sheet
-            summary_df = pd.DataFrame(summary_data)
-            summary_df.to_excel(writer, sheet_name='Summary', header=False, index=False)
+            # Add field headers
+            section_sheet['A3'] = "Field"
+            section_sheet['B3'] = "Value"
             
-            # Create detailed sheets for each section
-            for section_name, fields in complete_form_data.items():
-                # Create data list for section with field-value pairs
-                section_data = []
-                section_data.append([section_name])
-                section_data.append([])  # Empty row
-                section_data.append(["Field", "Value"])
+            # Style the headers
+            for cell in section_sheet['3:3']:
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+            
+            # Add data
+            row = 4
+            for field, value in fields.items():
+                section_sheet[f'A{row}'] = field
+                section_sheet[f'B{row}'] = value or ''
+                row += 1
+            
+            # Adjust column width
+            section_sheet.column_dimensions['A'].width = 30
+            section_sheet.column_dimensions['B'].width = 50
+        
+        # Create a table view of all data
+        all_data_sheet = workbook.create_sheet(title='All Data')
+        
+        # Add headers
+        all_data_sheet['A1'] = "Section"
+        all_data_sheet['B1'] = "Field"
+        all_data_sheet['C1'] = "Value"
+        
+        # Style headers
+        for cell in all_data_sheet['1:1']:
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+        
+        # Add all data rows
+        row = 2
+        for section, fields in complete_form_data.items():
+            for field, value in fields.items():
+                all_data_sheet[f'A{row}'] = section
+                all_data_sheet[f'B{row}'] = field
+                all_data_sheet[f'C{row}'] = value or ''
+                row += 1
+        
+        # Adjust column widths
+        all_data_sheet.column_dimensions['A'].width = 25
+        all_data_sheet.column_dimensions['B'].width = 30
+        all_data_sheet.column_dimensions['C'].width = 50
+        
+        # Create a pure tabular view for each section
+        for section_name, fields in complete_form_data.items():
+            # Create a table sheet where fields are columns
+            safe_table_name = f"{section_name[:20]}_Table".replace('/', '-').replace('\\', '-')[:31]
+            table_sheet = workbook.create_sheet(title=safe_table_name)
+            
+            # Add headers (field names)
+            col = 1
+            for field in fields.keys():
+                cell = table_sheet.cell(row=1, column=col)
+                cell.value = field
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
                 
-                for field, value in fields.items():
-                    section_data.append([field, value or ''])
+                # Adjust column width based on field name length
+                column_letter = openpyxl.utils.get_column_letter(col)
+                table_sheet.column_dimensions[column_letter].width = max(15, len(field) * 1.2)
                 
-                # Create DataFrame and write to sheet
-                section_df = pd.DataFrame(section_data)
-                safe_section_name = section_name.replace('/', '-').replace('\\', '-')[:31]
-                section_df.to_excel(writer, sheet_name=safe_section_name, header=False, index=False)
-                
-                # Also create a table view of the data
-                fields_df = pd.DataFrame([fields])
-                table_sheet_name = f"{safe_section_name}_Table"[:31]
-                fields_df.to_excel(writer, sheet_name=table_sheet_name, index=False)
+                col += 1
             
-            # Create a consolidated "All Data" sheet with all section data
-            all_data = []
-            all_data.append(["Section", "Field", "Value"])
-            
-            for section, fields in complete_form_data.items():
-                for field, value in fields.items():
-                    all_data.append([section, field, value or ''])
-            
-            all_data_df = pd.DataFrame(all_data[1:], columns=all_data[0])
-            all_data_df.to_excel(writer, sheet_name='All Data', index=False)
+            # Add values
+            row = 2
+            col = 1
+            for field, value in fields.items():
+                table_sheet.cell(row=row, column=col).value = value or ''
+                col += 1
+        
+        # Save workbook to output
+        workbook.save(output)
         
         # Set the file pointer at the beginning of the file
         output.seek(0)
@@ -557,173 +623,265 @@ def export_all_forms(format):
         return jsonify(data)
     elif format == 'excel':
         # Server-side Excel generation for all forms
-        import pandas as pd
         import io
         from flask import send_file
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
         
         # Create an in-memory output file
         output = io.BytesIO()
         
-        # Create a Pandas Excel writer using the output buffer
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            # Create summary sheet
-            summary_data = [
-                ['FormOCR - All Forms Export'],
-                ['User:', current_user.username],
-                ['Export Date:', datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
-                [],
-                ['Templates Included:']
-            ]
-            
-            # Add template types to summary
-            for idx, (template_type, forms) in enumerate(forms_by_template.items()):
-                form_count = len(forms)
-                summary_data.append([f"{idx + 1}. {template_type} ({form_count} forms)"])
-            
-            # Create DataFrame for summary and write to sheet
-            summary_df = pd.DataFrame(summary_data)
-            summary_df.to_excel(writer, sheet_name='Summary', header=False, index=False)
-            
-            # Process each template type
-            for template_type, forms in forms_by_template.items():
-                if not forms:
-                    continue  # Skip if no forms for this template
+        # Create Excel workbook directly with openpyxl for better formatting control
+        workbook = openpyxl.Workbook()
+        
+        # Create the main summary sheet
+        summary_sheet = workbook.active
+        summary_sheet.title = 'Summary'
+        
+        # Add title and basic info
+        summary_sheet['A1'] = "FormOCR - All Forms Export"
+        summary_sheet['A1'].font = Font(size=16, bold=True)
+        
+        summary_sheet['A2'] = "User:"
+        summary_sheet['B2'] = current_user.username
+        
+        summary_sheet['A3'] = "Export Date:"
+        summary_sheet['B3'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Add templates included section
+        summary_sheet['A5'] = "Templates Included:"
+        summary_sheet['A5'].font = Font(bold=True)
+        
+        # List template types
+        row = 6
+        for idx, (template_type, forms) in enumerate(forms_by_template.items()):
+            form_count = len(forms)
+            summary_sheet[f'A{row}'] = f"{idx + 1}. {template_type} ({form_count} forms)"
+            row += 1
+        
+        # Process each template type
+        for template_type, forms in forms_by_template.items():
+            if not forms:
+                continue  # Skip empty templates
                 
-                # Create a summary sheet for this template type with form details
-                template_summary_data = [
-                    [f"{template_type} Forms Summary"],
-                    [],
-                    ['Form ID', 'File Name', 'Created Date']
-                ]
+            # Create template summary sheet
+            safe_template_summary = f"{template_type[:25]}_Summary"[:31].replace('/', '-').replace('\\', '-')
+            template_summary_sheet = workbook.create_sheet(title=safe_template_summary)
+            
+            # Add title
+            template_summary_sheet['A1'] = f"{template_type} Forms Summary"
+            template_summary_sheet['A1'].font = Font(size=14, bold=True)
+            
+            # Add headers
+            template_summary_sheet['A3'] = "Form ID"
+            template_summary_sheet['B3'] = "File Name"
+            template_summary_sheet['C3'] = "Created Date"
+            
+            # Style headers
+            for cell in template_summary_sheet['3:3']:
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+            
+            # Add forms data
+            row = 4
+            for form in forms:
+                template_summary_sheet[f'A{row}'] = form['formId']
+                template_summary_sheet[f'B{row}'] = form['fileName']
+                template_summary_sheet[f'C{row}'] = form['createdAt']
+                row += 1
+            
+            # Adjust column widths
+            template_summary_sheet.column_dimensions['A'].width = 10
+            template_summary_sheet.column_dimensions['B'].width = 30
+            template_summary_sheet.column_dimensions['C'].width = 20
+            
+            # Get template structure from the first form
+            template_structure = forms[0]['extractedData']
+            
+            # Create a detailed combined sheet showing all forms' data 
+            safe_template_details = f"{template_type[:20]}_Details"[:31].replace('/', '-').replace('\\', '-')
+            details_sheet = workbook.create_sheet(title=safe_template_details)
+            
+            # Add title
+            details_sheet['A1'] = f"{template_type} - All Forms Data"
+            details_sheet['A1'].font = Font(size=14, bold=True)
+            
+            # Add form data
+            row = 3
+            for form in forms:
+                # Add form header
+                details_sheet[f'A{row}'] = f"Form ID: {form['formId']}"
+                details_sheet[f'B{row}'] = f"File: {form['fileName']}"
+                details_sheet[f'C{row}'] = f"Date: {form['createdAt']}"
+                details_sheet[f'A{row}'].font = Font(bold=True)
+                row += 2
                 
-                # Add each form to the summary
+                # Add sections and fields
+                for section, fields in form['extractedData'].items():
+                    # Section header
+                    details_sheet[f'A{row}'] = section
+                    details_sheet[f'A{row}'].font = Font(bold=True)
+                    row += 1
+                    
+                    # Field headers
+                    details_sheet[f'A{row}'] = "Field"
+                    details_sheet[f'B{row}'] = "Value"
+                    details_sheet[f'A{row}'].font = Font(bold=True)
+                    details_sheet[f'B{row}'].font = Font(bold=True)
+                    row += 1
+                    
+                    # Field values
+                    for field, value in fields.items():
+                        details_sheet[f'A{row}'] = field
+                        details_sheet[f'B{row}'] = value or ''
+                        row += 1
+                    
+                    row += 1  # Add space after section
+                
+                row += 2  # Add space between forms
+            
+            # Adjust column widths
+            details_sheet.column_dimensions['A'].width = 30
+            details_sheet.column_dimensions['B'].width = 50
+            
+            # For each section, create a separate sheet with all forms in one table
+            for section_name in template_structure.keys():
+                # Get all unique fields across all forms for this section
+                all_fields = set()
                 for form in forms:
-                    template_summary_data.append([form['formId'], form['fileName'], form['createdAt']])
+                    form_section = form['extractedData'].get(section_name, {})
+                    all_fields.update(form_section.keys())
                 
-                # Create DataFrame for template summary and write to sheet
-                template_summary_df = pd.DataFrame(template_summary_data[2:], columns=template_summary_data[2])
-                template_summary_df.to_excel(
-                    writer, 
-                    sheet_name=f"{template_type[:27]} Summary"[:31], 
-                    header=True, 
-                    index=False,
-                    startrow=2
-                )
+                safe_template = template_type[:12].replace('/', '-').replace('\\', '-')
+                safe_section = section_name[:12].replace('/', '-').replace('\\', '-')
+                sheet_name = f"{safe_template}-{safe_section}"[:31]
+                section_sheet = workbook.create_sheet(title=sheet_name)
                 
-                # Add title to the sheet
-                worksheet = writer.sheets[f"{template_type[:27]} Summary"[:31]]
-                worksheet.cell(row=1, column=1, value=template_summary_data[0][0])
+                # Add title
+                section_sheet['A1'] = f"{template_type} - {section_name}"
+                section_sheet['A1'].font = Font(size=14, bold=True)
                 
-                # For each section in the template, create a separate sheet with all forms
-                template_structure = forms[0]['extractedData']
-                for section_name in template_structure.keys():
-                    # Get all fields for this section
-                    all_fields = set()
-                    for form in forms:
-                        form_section = form['extractedData'].get(section_name, {})
-                        all_fields.update(form_section.keys())
-                    
-                    # Create headers: basic form info + all fields
-                    headers = ['Form ID', 'File Name', 'Created Date'] + sorted(list(all_fields))
-                    
-                    # Create rows for each form
-                    rows = []
-                    for form in forms:
-                        row = [
-                            form['formId'],
-                            form['fileName'],
-                            form['createdAt']
-                        ]
-                        
-                        # Add values for each field
-                        form_section = form['extractedData'].get(section_name, {})
-                        for field in sorted(all_fields):
-                            row.append(form_section.get(field, ''))
-                        
-                        rows.append(row)
-                    
-                    # Create DataFrame and write to sheet
-                    section_df = pd.DataFrame(rows, columns=headers)
-                    safe_template = template_type.replace('/', '-').replace('\\', '-')[:15]
-                    safe_section = section_name.replace('/', '-').replace('\\', '-')[:15]
-                    sheet_name = f"{safe_template}-{safe_section}"[:31]
-                    section_df.to_excel(writer, sheet_name=sheet_name, index=False)
+                # Add headers for data table
+                section_sheet['A3'] = "Form ID"
+                section_sheet['B3'] = "File Name" 
+                section_sheet['C3'] = "Created Date"
+                col = 4
                 
-                # Create a detailed sheet with all forms' data for this template
-                detailed_data = [
-                    [f"{template_type} - All Forms Details"],
-                    []
-                ]
+                # Map column letters for wider sheets
+                def get_column_letter(col_idx):
+                    return openpyxl.utils.get_column_letter(col_idx)
                 
-                # Add each form with all its data
+                # Add field names as column headers
+                for field in sorted(all_fields):
+                    column_letter = get_column_letter(col)
+                    section_sheet[f'{column_letter}3'] = field
+                    col += 1
+                
+                # Style headers
+                for cell in section_sheet['3:3']:
+                    if cell.value:  # Only style cells that have values
+                        cell.font = Font(bold=True)
+                        cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+                
+                # Add form data
+                row = 4
                 for form in forms:
-                    detailed_data.append([f"Form ID: {form['formId']}", f"File: {form['fileName']}", f"Date: {form['createdAt']}"])
-                    detailed_data.append([])
+                    section_sheet[f'A{row}'] = form['formId']
+                    section_sheet[f'B{row}'] = form['fileName']
+                    section_sheet[f'C{row}'] = form['createdAt']
                     
-                    # Add sections and fields
-                    for section, fields in form['extractedData'].items():
-                        detailed_data.append([section])
-                        detailed_data.append(['Field', 'Value'])
-                        
-                        for field, value in fields.items():
-                            detailed_data.append([field, value or ''])
-                        
-                        detailed_data.append([])  # Empty row after section
+                    # Add values for each field
+                    col = 4
+                    form_section = form['extractedData'].get(section_name, {})
+                    for field in sorted(all_fields):
+                        column_letter = get_column_letter(col)
+                        section_sheet[f'{column_letter}{row}'] = form_section.get(field, '')
+                        col += 1
                     
-                    detailed_data.append([])  # Extra empty row between forms
+                    row += 1
                 
-                # Create DataFrame and write to sheet
-                detailed_df = pd.DataFrame(detailed_data)
-                safe_template_name = template_type.replace('/', '-').replace('\\', '-')[:23]
-                detailed_df.to_excel(
-                    writer, 
-                    sheet_name=f"{safe_template_name} Details"[:31],
-                    header=False,
-                    index=False
-                )
+                # Adjust column widths
+                section_sheet.column_dimensions['A'].width = 10
+                section_sheet.column_dimensions['B'].width = 25
+                section_sheet.column_dimensions['C'].width = 20
                 
-                # Create a consolidated table with all fields from all sections
-                all_fields_by_section = {}
-                for section in template_structure.keys():
-                    all_fields_by_section[section] = set()
-                    for form in forms:
-                        form_section = form['extractedData'].get(section, {})
-                        all_fields_by_section[section].update(form_section.keys())
-                
-                # Create headers
-                consol_headers = ['Form ID', 'File Name', 'Created Date']
-                
-                # Add section-field headers
-                for section, fields in all_fields_by_section.items():
-                    for field in sorted(fields):
-                        consol_headers.append(f"{section} - {field}")
-                
-                # Create rows
-                consol_rows = []
-                for form in forms:
-                    row = [
-                        form['formId'],
-                        form['fileName'],
-                        form['createdAt']
-                    ]
-                    
-                    # Add values for each section-field
-                    for section, fields in all_fields_by_section.items():
-                        form_section = form['extractedData'].get(section, {})
-                        for field in sorted(fields):
-                            row.append(form_section.get(field, ''))
-                    
-                    consol_rows.append(row)
-                
-                # Create DataFrame and write to sheet
-                consol_df = pd.DataFrame(consol_rows, columns=consol_headers)
-                safe_template_consol = template_type.replace('/', '-').replace('\\', '-')[:20]
-                consol_df.to_excel(
-                    writer, 
-                    sheet_name=f"{safe_template_consol}"[:31],
-                    index=False
-                )
+                # Adjust field columns based on field name length
+                col = 4
+                for field in sorted(all_fields):
+                    column_letter = get_column_letter(col)
+                    section_sheet.column_dimensions[column_letter].width = min(30, max(15, len(field) * 1.2))
+                    col += 1
             
+            # Create a consolidated sheet with all sections for this template
+            safe_template_consol = template_type[:25].replace('/', '-').replace('\\', '-')
+            consol_sheet = workbook.create_sheet(title=safe_template_consol)
+            
+            # Add title
+            consol_sheet['A1'] = f"{template_type} - All Data"
+            consol_sheet['A1'].font = Font(size=14, bold=True)
+            
+            # Add headers
+            consol_sheet['A3'] = "Form ID"
+            consol_sheet['B3'] = "File Name"
+            consol_sheet['C3'] = "Created Date"
+            
+            # Add section-field headers
+            col = 4
+            all_headers = []
+            
+            for section in template_structure.keys():
+                section_fields = set()
+                for form in forms:
+                    form_section = form['extractedData'].get(section, {})
+                    section_fields.update(form_section.keys())
+                
+                for field in sorted(section_fields):
+                    column_letter = get_column_letter(col)
+                    header = f"{section} - {field}"
+                    consol_sheet[f'{column_letter}3'] = header
+                    all_headers.append((column_letter, header))
+                    col += 1
+            
+            # Style headers
+            for cell in consol_sheet['3:3']:
+                if cell.value:  # Only style cells that have values
+                    cell.font = Font(bold=True)
+                    cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+            
+            # Add form data
+            row = 4
+            for form in forms:
+                consol_sheet[f'A{row}'] = form['formId']
+                consol_sheet[f'B{row}'] = form['fileName']
+                consol_sheet[f'C{row}'] = form['createdAt']
+                
+                # Add values for each section-field
+                for column_letter, header in all_headers:
+                    # Parse section and field from header
+                    parts = header.split(' - ', 1)
+                    if len(parts) == 2:
+                        section, field = parts
+                        
+                        # Get value from form data
+                        if section in form['extractedData']:
+                            form_section = form['extractedData'][section]
+                            value = form_section.get(field, '')
+                            consol_sheet[f'{column_letter}{row}'] = value
+                
+                row += 1
+            
+            # Adjust column widths
+            consol_sheet.column_dimensions['A'].width = 10
+            consol_sheet.column_dimensions['B'].width = 25
+            consol_sheet.column_dimensions['C'].width = 20
+            
+            # Adjust field columns based on field name length
+            for column_letter, header in all_headers:
+                consol_sheet.column_dimensions[column_letter].width = min(20, max(15, len(header) * 0.8))
+                
+        # Save workbook to output
+        workbook.save(output)
+        
         # Reset the file pointer
         output.seek(0)
         

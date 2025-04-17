@@ -183,6 +183,11 @@ def review_data():
     template = FORM_TEMPLATES.get(template_type, {})
     
     if request.method == 'POST':
+        # Debug: Log all form data received
+        logger.debug("FORM DATA RECEIVED:")
+        for key, value in request.form.items():
+            logger.debug(f"  {key}: {value}")
+            
         # Get the updated form data from the submitted form
         updated_data = {}
         
@@ -195,6 +200,9 @@ def review_data():
                 field_name = field_info["field"]
                 field_id = f"{section_name}_{field_name}".replace(" ", "_").replace("'", "")
                 field_value = request.form.get(field_id, "")
+                
+                # Debug this specific field
+                logger.debug(f"Field: {field_id}, Value from form: '{field_value}'")
                 
                 # Store the form value 
                 section_data[field_name] = field_value
@@ -223,11 +231,15 @@ def review_data():
         flash('Form data saved successfully!', 'success')
         return redirect(url_for('dashboard'))
     
+    # For GET requests, pass the template data to the template
+    extracted_data = session['extracted_data']
+    logger.debug(f"Displaying data for review: {extracted_data}")
+    
     return render_template(
         'review_data.html', 
         title='Review Data', 
         template_type=session['selected_template'],
-        extracted_data=session['extracted_data']
+        extracted_data=extracted_data
     )
 
 @app.route('/view-form/<int:form_id>')

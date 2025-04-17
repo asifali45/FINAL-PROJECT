@@ -199,42 +199,62 @@ function exportToExcel(formId) {
             const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
             XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
             
-            // Create consolidated data worksheet
-            const allData = [
-                [`${templateType} Form - Complete Data`],
-                [],
-                ['Section', 'Field', 'Value']
-            ];
-            
-            // Add all fields with their sections
+            // Create section-specific worksheets - one per section
             Object.entries(extractedData).forEach(([section, fields]) => {
-                Object.entries(fields).forEach(([field, value]) => {
-                    allData.push([section, field, value || '']);
-                });
-            });
-            
-            // Add consolidated worksheet
-            const allDataWs = XLSX.utils.aoa_to_sheet(allData);
-            XLSX.utils.book_append_sheet(wb, allDataWs, 'All Data');
-            
-            // Create section-specific worksheets
-            Object.entries(extractedData).forEach(([section, fields]) => {
-                const sectionData = [
-                    [section],
-                    [],
-                    ['Field', 'Value']
-                ];
+                // Create section data with proper column headers
+                const headers = Object.keys(fields);
                 
-                // Add all fields for this section
-                Object.entries(fields).forEach(([field, value]) => {
-                    sectionData.push([field, value || '']);
-                });
+                // Create the data rows for this section
+                const rows = [];
+                rows.push(headers); // First row is field names
+                rows.push(Object.values(fields).map(val => val || '')); // Second row is values
                 
-                // Create and add section worksheet
-                const sectionWs = XLSX.utils.aoa_to_sheet(sectionData);
+                // Create and add worksheet
+                const sectionWs = XLSX.utils.aoa_to_sheet(rows);
+                
+                // Format the worksheet - adjust column widths
+                const columnWidths = [];
+                for (let i = 0; i < headers.length; i++) {
+                    // Default width is max of 15 characters or header length
+                    columnWidths[i] = { wch: Math.max(15, headers[i].length * 1.2) };
+                }
+                sectionWs['!cols'] = columnWidths;
+                
+                // Create a safe sheet name
                 const safeSheetName = section.replace(/[\\/*[\]?]/g, '').substring(0, 31);
                 XLSX.utils.book_append_sheet(wb, sectionWs, safeSheetName);
             });
+            
+            // Create consolidated data worksheet in the format requested
+            // This will have field names as columns
+            const allHeaders = [];
+            const allValues = [];
+            
+            // Extract all field names by section
+            Object.entries(extractedData).forEach(([section, fields]) => {
+                Object.entries(fields).forEach(([field, value]) => {
+                    allHeaders.push(`${section} - ${field}`);
+                    allValues.push(value || '');
+                });
+            });
+            
+            // Create the consolidated data
+            const allData = [
+                allHeaders, // Field names as columns
+                allValues   // Values as a row
+            ];
+            
+            // Add consolidated worksheet
+            const allDataWs = XLSX.utils.aoa_to_sheet(allData);
+            
+            // Format the consolidated worksheet
+            const allColumnWidths = [];
+            for (let i = 0; i < allHeaders.length; i++) {
+                allColumnWidths[i] = { wch: Math.max(15, allHeaders[i].length * 1.2) };
+            }
+            allDataWs['!cols'] = allColumnWidths;
+            
+            XLSX.utils.book_append_sheet(wb, allDataWs, 'All Fields');
             
             // Save workbook
             XLSX.writeFile(wb, `${templateType.replace(/\s+/g, '_')}_Form_${formId}.xlsx`);
@@ -291,28 +311,82 @@ function exportAllFormsToExcel() {
                 const sampleForm = forms[0];
                 const templateStructure = sampleForm.extractedData;
                 
-                // Create a worksheet for this template type - flatten the form structure
-                // First, we'll identify all unique fields across all sections
-                const allFields = {};
-                const allSections = new Set();
+                // Process each section separately to get all fields
+                Object.entries(templateStructure).forEach(([sectionName, fields]) => {
+                    // Create headers for the section table (field names as columns)
+                    const headers = ['Form ID', 'File Name', 'Created At'];
+                    const fieldNames = Object.keys(fields);
+                    headers.push(...fieldNames);
+                    
+                    // Create data rows (each form as a row)
+                    const rows = [headers]; // First row is headers
+                    
+                    // Add a row for each form with this template
+                    forms.forEach(form => {
+                        const row = [
+                            form.formId,
+                            form.fileName,
+                            form.createdAt
+                        ];
+                        
+                        // Add values for each field
+                        fieldNames.forEach(fieldName => {
+                            let value = '';
+                            if (form.extractedData[sectionName] && 
+                                fieldName in form.extractedData[sectionName]) {
+                                value = form.extractedData[sectionName][fieldName] || '';
+                            }
+                            row.push(value);
+                        });
+                        
+                        rows.push(row);
+                    });
+                    
+                    // Create and add section worksheet
+                    const sectionWs = XLSX.utils.aoa_to_sheet(rows);
+                    
+                    // Format the worksheet - adjust column widths
+                    const columnWidths = [];
+                    for (let i = 0; i < headers.length; i++) {
+                        // Default width is max of 15 characters or header length
+                        columnWidths[i] = { wch: Math.max(15, headers[i].length * 1.2) };
+                    }
+                    sectionWs['!cols'] = columnWidths;
+                    
+                    // Create a safe sheet name (template + section)
+                    const safeTemplateName = templateType.replace(/[\\/*[\]?]/g, '');
+                    const safeSectionName = sectionName.replace(/[\\/*[\]?]/g, '');
+                    const sheetName = `${safeTemplateName}-${safeSectionName}`.substring(0, 31);
+                    XLSX.utils.book_append_sheet(wb, sectionWs, sheetName);
+                });
                 
-                // Determine all possible fields and sections
+                // Also create a consolidated view with all sections for this template type
+                const allFields = {};
+                
+                // First pass: determine all fields by section
                 Object.entries(templateStructure).forEach(([section, fields]) => {
-                    allSections.add(section);
                     Object.keys(fields).forEach(field => {
-                        const fieldKey = `${section} - ${field}`;
-                        allFields[fieldKey] = { section, field };
+                        if (!allFields[section]) {
+                            allFields[section] = [];
+                        }
+                        if (!allFields[section].includes(field)) {
+                            allFields[section].push(field);
+                        }
                     });
                 });
                 
-                // Create headers for the flattened table
+                // Create headers for the consolidated table
                 const headers = ['Form ID', 'File Name', 'Created At'];
-                const fieldKeys = Object.keys(allFields);
-                headers.push(...fieldKeys);
                 
-                // Create worksheet rows
-                const rows = [];
-                rows.push(headers);
+                // Add all fields as headers, organized by section
+                Object.entries(allFields).forEach(([section, fieldList]) => {
+                    fieldList.forEach(field => {
+                        headers.push(`${section} - ${field}`);
+                    });
+                });
+                
+                // Create data rows
+                const rows = [headers];
                 
                 // Add data for each form
                 forms.forEach(form => {
@@ -322,88 +396,34 @@ function exportAllFormsToExcel() {
                         form.createdAt
                     ];
                     
-                    // Add values for each field
-                    fieldKeys.forEach(fieldKey => {
-                        const { section, field } = allFields[fieldKey];
-                        let value = '';
-                        
-                        if (form.extractedData[section] && 
-                            field in form.extractedData[section]) {
-                            value = form.extractedData[section][field] || '';
-                        }
-                        
-                        row.push(value);
+                    // Add values for each field, organized by section
+                    Object.entries(allFields).forEach(([section, fieldList]) => {
+                        fieldList.forEach(field => {
+                            let value = '';
+                            if (form.extractedData[section] && 
+                                field in form.extractedData[section]) {
+                                value = form.extractedData[section][field] || '';
+                            }
+                            row.push(value);
+                        });
                     });
                     
                     rows.push(row);
                 });
                 
-                // Create and add template worksheet
+                // Create the consolidated worksheet
                 const templateWs = XLSX.utils.aoa_to_sheet(rows);
                 
                 // Format the worksheet - adjust column widths
-                const columnWidths = [];
+                const mainColumnWidths = [];
                 for (let i = 0; i < headers.length; i++) {
-                    // Default width is max of 15 characters or header length
-                    columnWidths[i] = { wch: Math.max(15, headers[i].length * 1.2) };
+                    mainColumnWidths[i] = { wch: Math.max(15, headers[i].length * 1.2) };
                 }
-                templateWs['!cols'] = columnWidths;
+                templateWs['!cols'] = mainColumnWidths;
                 
-                // Create a safe sheet name
+                // Add the consolidated worksheet
                 const safeTemplateName = templateType.replace(/[\\/*[\]?]/g, '').substring(0, 28);
                 XLSX.utils.book_append_sheet(wb, templateWs, safeTemplateName);
-                
-                // Create section-specific worksheets for this template
-                allSections.forEach(section => {
-                    // Get all fields for this section
-                    const sectionFields = Object.values(allFields)
-                        .filter(f => f.section === section)
-                        .map(f => f.field);
-                    
-                    // Create headers for the section table
-                    const sectionHeaders = ['Form ID', 'File Name', 'Created At', ...sectionFields];
-                    
-                    // Create worksheet rows
-                    const sectionRows = [];
-                    sectionRows.push(sectionHeaders);
-                    
-                    // Add data for each form
-                    forms.forEach(form => {
-                        const row = [
-                            form.formId,
-                            form.fileName,
-                            form.createdAt
-                        ];
-                        
-                        // Add values for each field in this section
-                        sectionFields.forEach(field => {
-                            let value = '';
-                            
-                            if (form.extractedData[section] && 
-                                field in form.extractedData[section]) {
-                                value = form.extractedData[section][field] || '';
-                            }
-                            
-                            row.push(value);
-                        });
-                        
-                        sectionRows.push(row);
-                    });
-                    
-                    // Create and add section worksheet
-                    const sectionWs = XLSX.utils.aoa_to_sheet(sectionRows);
-                    
-                    // Format the worksheet - adjust column widths
-                    const sectionColumnWidths = [];
-                    for (let i = 0; i < sectionHeaders.length; i++) {
-                        sectionColumnWidths[i] = { wch: Math.max(15, sectionHeaders[i].length * 1.2) };
-                    }
-                    sectionWs['!cols'] = sectionColumnWidths;
-                    
-                    // Create a safe sheet name
-                    const safeSectionName = `${safeTemplateName}-${section}`.replace(/[\\/*[\]?]/g, '').substring(0, 31);
-                    XLSX.utils.book_append_sheet(wb, sectionWs, safeSectionName);
-                });
             });
             
             // Save workbook

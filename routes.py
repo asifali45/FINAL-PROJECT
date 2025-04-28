@@ -101,7 +101,7 @@ def form_upload():
     selected_template = session['selected_template']
     form = FormUploadForm()
     
-    if form.validate_on_submit() or 'camera_image' in request.form:
+    if form.validate_on_submit() or ('camera_image' in request.form and request.form['camera_image']):
         temp_dir = tempfile.mkdtemp()
         temp_path = ""
         filename = ""

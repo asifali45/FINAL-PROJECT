@@ -173,6 +173,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Store in hidden input
         cameraImageInput.value = imageData;
         
+        // Log for debugging
+        console.log("Captured photo and stored in hidden input (length: " + imageData.length + ")");
+        
         // Update UI
         capturePhotoBtn.classList.add('d-none');
         retakePhotoBtn.classList.remove('d-none');
@@ -226,9 +229,22 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Clean up on form submission
-    uploadForm.addEventListener('submit', function() {
+    uploadForm.addEventListener('submit', function(event) {
+        // Stop camera stream if active
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
+        }
+        
+        // If using camera and photo was taken, ensure the form will be submitted
+        // even if form_file validation would normally prevent it
+        if (document.getElementById('camera-upload').classList.contains('active') && 
+            photoTaken && 
+            cameraImageInput.value) {
+            
+            console.log("Submitting form with camera image data");
+            
+            // For debugging - log the length of image data being submitted
+            console.log("Image data length: " + cameraImageInput.value.length);
         }
     });
     

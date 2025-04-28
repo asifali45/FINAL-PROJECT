@@ -109,24 +109,43 @@ def form_upload():
         try:
             # Check if we received camera data or file upload
             if 'camera_image' in request.form and request.form['camera_image']:
-                # Handle camera image (base64 encoded)
-                camera_data = request.form['camera_image']
-                
-                # Remove the data URL prefix if present (e.g., "data:image/jpeg;base64,")
-                if ',' in camera_data:
-                    camera_data = camera_data.split(',', 1)[1]
-                
-                # Decode base64 data
-                image_data = base64.b64decode(camera_data)
-                
-                # Save to temp file
-                filename = f"camera_capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-                temp_path = os.path.join(temp_dir, filename)
-                
-                with open(temp_path, 'wb') as f:
-                    f.write(image_data)
-                
-                logger.debug(f"Saved camera capture to {temp_path}")
+                try:
+                    # Handle camera image (base64 encoded)
+                    camera_data = request.form['camera_image']
+                    
+                    # Log data length for debugging
+                    logger.debug(f"Received camera data length: {len(camera_data)}")
+                    
+                    # Remove the data URL prefix if present (e.g., "data:image/jpeg;base64,")
+                    if ',' in camera_data:
+                        logger.debug("Data URL prefix detected, splitting at comma")
+                        camera_data = camera_data.split(',', 1)[1]
+                    else:
+                        logger.debug("No data URL prefix detected")
+                    
+                    # Log data after prefix is removed
+                    logger.debug(f"Camera data length after prefix removal: {len(camera_data)}")
+                    
+                    # Decode base64 data
+                    try:
+                        image_data = base64.b64decode(camera_data)
+                        logger.debug(f"Successfully decoded base64 data, length: {len(image_data)} bytes")
+                    except Exception as decode_error:
+                        logger.error(f"Error decoding base64 data: {str(decode_error)}")
+                        raise
+                    
+                    # Save to temp file
+                    filename = f"camera_capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+                    temp_path = os.path.join(temp_dir, filename)
+                    
+                    with open(temp_path, 'wb') as f:
+                        f.write(image_data)
+                    
+                    logger.debug(f"Saved camera capture to {temp_path}")
+                except Exception as camera_error:
+                    logger.error(f"Error processing camera image: {str(camera_error)}")
+                    flash(f"Error processing camera image: {str(camera_error)}", 'danger')
+                    return render_template('form_upload.html', title='Upload Form', form=form, template=selected_template)
                 
             elif form.form_file.data:
                 # Handle regular file upload

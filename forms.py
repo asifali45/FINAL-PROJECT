@@ -2,6 +2,7 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import StringField, PasswordField, SubmitField, SelectField, BooleanField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
+from flask import request
 from models import User
 
 class LoginForm(FlaskForm):
@@ -38,7 +39,15 @@ class TemplateSelectionForm(FlaskForm):
 class FormUploadForm(FlaskForm):
     form_file = FileField('Upload Handwritten Form', 
                           validators=[
-                              FileRequired(),
                               FileAllowed(['jpg', 'jpeg', 'png', 'pdf'], 'Images and PDF only!')
                           ])
     submit = SubmitField('Upload and Extract')
+    
+    def validate_form_file(self, field):
+        # Skip validation if camera image is being used
+        if 'camera_image' in request.form and request.form['camera_image']:
+            return
+            
+        # Otherwise enforce file required
+        if not field.data:
+            raise ValidationError('Please select a file or use the camera.')

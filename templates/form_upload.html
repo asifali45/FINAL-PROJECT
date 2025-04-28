@@ -97,7 +97,10 @@
                             </a>
                         </div>
                         <div class="col-md-6">
-                            {{ form.submit(class="btn btn-primary w-100") }}
+                            <!-- Custom submit button instead of form.submit to handle camera validation better -->
+                <button type="submit" class="btn btn-primary w-100" id="form-submit-btn">
+                    <i class="fas fa-upload me-2"></i>Upload and Extract
+                </button>
                         </div>
                     </div>
                 </form>
@@ -228,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Clean up on form submission
+    // Handle form submission 
     uploadForm.addEventListener('submit', function(event) {
         // Stop camera stream if active
         if (stream) {
@@ -237,14 +240,28 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // If using camera and photo was taken, ensure the form will be submitted
         // even if form_file validation would normally prevent it
-        if (document.getElementById('camera-upload').classList.contains('active') && 
-            photoTaken && 
-            cameraImageInput.value) {
-            
-            console.log("Submitting form with camera image data");
-            
-            // For debugging - log the length of image data being submitted
-            console.log("Image data length: " + cameraImageInput.value.length);
+        if (document.getElementById('camera-upload').classList.contains('active')) {
+            if (photoTaken && cameraImageInput.value) {
+                console.log("Submitting form with camera image data");
+                console.log("Image data length: " + cameraImageInput.value.length);
+                
+                // Ensure the form is submitted with the camera image
+                // regardless of file field validation
+                return true;
+            } else {
+                // Camera tab is active but no photo taken
+                console.error("Camera tab is active but no photo has been captured");
+                
+                // Prevent form submission and show an error message
+                if (!photoTaken) {
+                    event.preventDefault();
+                    alert("Please capture a photo before submitting");
+                    return false;
+                }
+            }
+        } else {
+            // File upload tab is active - let form validation handle it
+            console.log("File upload tab is active, relying on standard form validation");
         }
     });
     

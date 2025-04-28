@@ -31,33 +31,8 @@ function exportToPDF(formId) {
             // Add line separator
             doc.line(20, 40, 190, 40);
             
-            // Add table of contents
-            doc.setFont(undefined, 'bold');
-            doc.setFontSize(14);
-            doc.text('Form Sections:', 20, 50);
-            
-            let tocY = 60;
-            const sections = Object.keys(extractedData);
-            sections.forEach((section, index) => {
-                doc.setFont(undefined, 'normal');
-                doc.setFontSize(12);
-                doc.text(`${index + 1}. ${section}`, 25, tocY);
-                tocY += 8;
-            });
-            
-            // Add line separator after TOC
-            tocY += 5;
-            doc.line(20, tocY, 190, tocY);
-            tocY += 10;
-            
-            // Check if we need to add a new page for the form data
-            if (tocY > 240) {
-                doc.addPage();
-                tocY = 20;
-            }
-            
             // Set starting y position for form sections
-            let yPos = tocY;
+            let yPos = 50;
             
             // Helper function to create a table
             function createTable(headers, rows, startY) {
@@ -194,23 +169,7 @@ function exportToExcel(formId) {
             // Create a new workbook
             const wb = XLSX.utils.book_new();
             
-            // Create a summary worksheet
-            const summaryData = [
-                [`${templateType} Form`],
-                ['Original File:', fileName],
-                ['Export Date:', new Date().toLocaleString()],
-                [],
-                ['Form Sections:']
-            ];
-            
-            // Add sections to summary
-            Object.keys(extractedData).forEach((section, index) => {
-                summaryData.push([`${index + 1}. ${section}`]);
-            });
-            
-            // Add summary worksheet
-            const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
-            XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+            // No summary worksheet - removed as requested
             
             // Create a detailed data worksheet for each section
             Object.entries(extractedData).forEach(([section, fields]) => {
@@ -337,24 +296,7 @@ function exportAllFormsToExcel() {
             // Create a new workbook
             const wb = XLSX.utils.book_new();
             
-            // Create a summary worksheet
-            const summaryData = [
-                ['FormOCR - All Forms Export'],
-                ['User:', username],
-                ['Export Date:', exportDate],
-                [],
-                ['Templates Included:']
-            ];
-            
-            // Add template types to summary
-            Object.keys(formsByTemplate).forEach((template, index) => {
-                const formCount = formsByTemplate[template].length;
-                summaryData.push([`${index + 1}. ${template} (${formCount} forms)`]);
-            });
-            
-            // Add summary worksheet
-            const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
-            XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+            // No summary worksheet - removed as requested
             
             // Process each template type
             Object.entries(formsByTemplate).forEach(([templateType, forms]) => {

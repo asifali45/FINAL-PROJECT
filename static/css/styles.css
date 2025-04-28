@@ -1,12 +1,12 @@
 /* Custom styles for the FormOCR application */
 
 :root {
-    --dark-green: #0a1b14;
-    --medium-green: #11382a;
-    --light-green: #00e6a5;
-    --accent-green: #00e6a5;
+    --dark-green: #0d1211; /* Almost black with a slight green tint - from screenshots */
+    --medium-green: #141e1c; /* Slightly lighter than background for cards - from screenshots */
+    --light-green: #00ff9d; /* Bright teal accent color - from screenshots */
+    --accent-green: #00ff9d; /* Matching accent color */
     --off-white: #f8f9fa;
-    --text-gray: #e6e6e6;
+    --text-gray: #ffffff; /* Pure white text - from screenshots */
 }
 
 /* Body */
@@ -28,8 +28,8 @@ body {
 }
 
 .navbar {
-    background-color: rgba(10, 27, 20, 0.95);
-    border-bottom: 1px solid rgba(0, 230, 165, 0.2);
+    background-color: var(--dark-green);
+    border-bottom: 1px solid rgba(0, 255, 157, 0.2);
     padding: 0.8rem 1rem;
 }
 

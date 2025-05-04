@@ -1,11 +1,14 @@
 import os
 import logging
-
+from flask_migrate import Migrate
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_login import LoginManager
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -24,7 +27,9 @@ app.secret_key = "dev_secure_secret_key_for_form_digitizer_application"
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)  # needed for url_for to generate with https
 
 # Configure the database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///formdigitizer.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:12345678@localhost:5432/formdigitizer"
+
+migrate = Migrate(app, db)
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
